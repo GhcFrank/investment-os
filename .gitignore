@@ -1,0 +1,16 @@
+# Python cache
+__pycache__/
+*.pyc
+
+# Virtual environment
+myInvestmentEnv/
+
+# VS Code
+.vscode/
+
+# Generated data
+data/fundamentals.csv
+
+# macOS
+.DS_Store
+
