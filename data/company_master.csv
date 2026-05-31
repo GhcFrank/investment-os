@@ -1,11 +1,11 @@
-ticker,company,theme,subtheme
-NVDA,NVIDIA,AI,GPU
-AVGO,Broadcom,AI,Networking
-ANET,Arista,AI,Networking
-CRDO,Credo,AI,Optical
-VRT,Vertiv,AI,Power
-ETN,Eaton,AI,Power
-GEV,GE Vernova,AI,Power
-CEG,Constellation,AI,Power
-TSM,TSMC,AI,Foundry
-ASML,ASML,AI,Equipment
+ticker,company,theme,subtheme,business_quality_score
+NVDA,NVIDIA,AI Infrastructure,GPU,10
+AVGO,Broadcom,AI Infrastructure,Networking,9
+ANET,Arista,AI Infrastructure,Networking,8
+CRDO,Credo,AI Infrastructure,Optical,7
+VRT,Vertiv,AI Infrastructure,Power,7
+ETN,Eaton,AI Infrastructure,Power,8
+GEV,GE Vernova,AI Infrastructure,Power,7
+CEG,Constellation Energy,AI Infrastructure,Power,6
+TSM,TSMC,AI Infrastructure,Foundry,9
+ASML,ASML,AI Infrastructure,Equipment,10
