@@ -1,11 +1,11 @@
-ticker,company,theme,subtheme,business_quality_score
-NVDA,NVIDIA,AI Infrastructure,GPU,10
-AVGO,Broadcom,AI Infrastructure,Networking,9
-ANET,Arista,AI Infrastructure,Networking,8
-CRDO,Credo,AI Infrastructure,Optical,7
-VRT,Vertiv,AI Infrastructure,Power,7
-ETN,Eaton,AI Infrastructure,Power,8
-GEV,GE Vernova,AI Infrastructure,Power,7
-CEG,Constellation Energy,AI Infrastructure,Power,6
-TSM,TSMC,AI Infrastructure,Foundry,9
-ASML,ASML,AI Infrastructure,Equipment,10
+ticker,company,sector,industry_group,theme,subtheme,supply_chain_layer,business_quality_score
+NVDA,NVIDIA,Technology,Semiconductor,AI Infrastructure,GPU,Compute,10
+AVGO,Broadcom,Technology,Semiconductor,AI Infrastructure,Networking,Connectivity,9
+ANET,Arista,Technology,Networking Equipment,AI Infrastructure,Networking,Connectivity,8
+CRDO,Credo,Technology,Semiconductor,AI Infrastructure,Optical,Connectivity,7
+TSM,TSMC,Technology,Semiconductor Foundry,AI Infrastructure,Foundry,Manufacturing,9
+ASML,ASML,Technology,Semicap Equipment,AI Infrastructure,Equipment,Manufacturing Equipment,10
+VRT,Vertiv,Industrials,Electrical Equipment,AI Infrastructure,Power,Power Infrastructure,7
+ETN,Eaton,Industrials,Electrical Equipment,AI Infrastructure,Power,Power Infrastructure,8
+GEV,GE Vernova,Industrials,Power Equipment,AI Infrastructure,Power,Grid Infrastructure,7
+CEG,Constellation Energy,Utilities,Power Generation,AI Infrastructure,Energy,Power Supply,6
