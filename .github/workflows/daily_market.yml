@@ -1,64 +1,59 @@
 name: Daily Market Update
 
 on:
-
   workflow_dispatch:
 
   schedule:
-
-    # UTC时间 21:30
-    # 夏令时对应美东 17:30
-
+    # GitHub Actions 使用 UTC 时间。
+    # 21:30 UTC 在美国夏令时期间约等于美东 17:30。
+    # 1-5 表示周一到周五运行。
     - cron: "30 21 * * 1-5"
 
 jobs:
-
   run-market-update:
-
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write
+
     steps:
-
       - name: Checkout Repository
-
         uses: actions/checkout@v4
 
       - name: Set Up Python
-
         uses: actions/setup-python@v5
-
         with:
-
           python-version: "3.12"
 
       - name: Install Dependencies
-
         run: |
-
           pip install -r requirements.txt
 
       - name: Run Price Update
-
         run: |
-
           python src/update_prices.py
 
       - name: Build Sector Strength
-
         run: |
-
           python src/build_sector_strength.py
 
       - name: Run Daily Market Monitor
-
         run: |
-
           python src/daily_market_monitor.py
-
         env:
-
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
-
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
-
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
+
+      - name: Commit Updated Data
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add data/prices.csv
+          git add data/sector_strength.csv
+          git add data/sector_strength_history.csv
+          git add data/daily_market_signals.csv
+
+          git commit -m "Update daily market data" || echo "No changes to commit"
+          git push
