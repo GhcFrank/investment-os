@@ -1,0 +1,64 @@
+name: Daily Market Update
+
+on:
+
+  workflow_dispatch:
+
+  schedule:
+
+    # UTC时间 21:30
+    # 夏令时对应美东 17:30
+
+    - cron: "30 21 * * 1-5"
+
+jobs:
+
+  run-market-update:
+
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout Repository
+
+        uses: actions/checkout@v4
+
+      - name: Set Up Python
+
+        uses: actions/setup-python@v5
+
+        with:
+
+          python-version: "3.12"
+
+      - name: Install Dependencies
+
+        run: |
+
+          pip install -r requirements.txt
+
+      - name: Run Price Update
+
+        run: |
+
+          python src/update_prices.py
+
+      - name: Build Sector Strength
+
+        run: |
+
+          python src/build_sector_strength.py
+
+      - name: Run Daily Market Monitor
+
+        run: |
+
+          python src/daily_market_monitor.py
+
+        env:
+
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
