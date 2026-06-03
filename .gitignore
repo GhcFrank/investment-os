@@ -14,3 +14,5 @@ data/fundamentals.csv
 # macOS
 .DS_Store
 
+# Environment variables
+.env
