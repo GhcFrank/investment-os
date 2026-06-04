@@ -29,17 +29,9 @@ jobs:
         run: |
           pip install -r requirements.txt
 
-      - name: Run Price Update
+      - name: Run Daily Pipeline
         run: |
-          python src/update_prices.py
-
-      - name: Build Sector Strength
-        run: |
-          python src/build_sector_strength.py
-
-      - name: Run Daily Market Monitor
-        run: |
-          python src/daily_market_monitor.py
+          python src/run_daily_pipeline.py
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
