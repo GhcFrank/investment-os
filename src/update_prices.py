@@ -17,6 +17,8 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 
+from history_utils import upsert_daily_history
+
 
 # 项目根目录：
 # 当前文件在 investment_os/src/update_prices.py
@@ -28,6 +30,13 @@ INPUT_FILE = BASE_DIR / "data" / "company_master.csv"
 
 # 输出文件：价格指标表
 OUTPUT_FILE = BASE_DIR / "data" / "prices.csv"
+
+# 历史价格指标表
+HISTORY_FILE = (
+    BASE_DIR
+    / "data"
+    / "prices_history.csv"
+)
 
 
 def calculate_price_features(ticker: str) -> dict:
@@ -162,6 +171,11 @@ def main() -> None:
 
     # 保存结果。
     final_df.to_csv(OUTPUT_FILE, index=False)
+
+    upsert_daily_history(
+        final_df,
+        HISTORY_FILE,
+    )
 
     print(f"\nSaved price data to: {OUTPUT_FILE}")
     print(final_df.head())

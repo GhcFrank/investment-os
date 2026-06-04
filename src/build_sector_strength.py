@@ -39,6 +39,8 @@ from datetime import datetime
 
 import pandas as pd
 
+from history_utils import upsert_daily_history
+
 
 # ============================================================
 # 项目路径
@@ -188,78 +190,6 @@ def calculate_sector_scores(
 
 
 # ============================================================
-# 保存历史记录
-# ============================================================
-
-def append_history(
-    sector_strength: pd.DataFrame,
-) -> None:
-    """
-    把当天结果写入历史数据库。
-
-    第一版逻辑：
-
-        文件不存在
-            -> 创建
-
-        文件存在
-            -> 追加
-
-    注意：
-
-        如果一天运行多次，
-        会产生重复记录。
-
-    下一版再解决。
-    """
-
-    history_df = sector_strength.copy()
-
-    history_df["date"] = (
-        datetime.now()
-        .strftime("%Y-%m-%d")
-    )
-
-    # 第一次运行
-    if not HISTORY_FILE.exists():
-
-        history_df.to_csv(
-            HISTORY_FILE,
-            index=False,
-        )
-
-        print(
-            f"\nCreated history file:\n"
-            f"{HISTORY_FILE}\n"
-        )
-
-        return
-
-    # 读取已有历史
-    existing = pd.read_csv(
-        HISTORY_FILE
-    )
-
-    combined = pd.concat(
-        [
-            existing,
-            history_df,
-        ],
-        ignore_index=True,
-    )
-
-    combined.to_csv(
-        HISTORY_FILE,
-        index=False,
-    )
-
-    print(
-        f"\nUpdated history file:\n"
-        f"{HISTORY_FILE}\n"
-    )
-
-
-# ============================================================
 # 主程序
 # ============================================================
 
@@ -295,8 +225,9 @@ def main() -> None:
     )
 
     # 保存历史
-    append_history(
-        sector_strength
+    upsert_daily_history(
+        sector_strength,
+        HISTORY_FILE,
     )
 
     print(
