@@ -1,21 +1,19 @@
 signal_date,ticker,company,daily_return,weekly_return,monthly_return,volume_ratio,group_type,group_name,signal_type,message
-2026-06-04,AVGO,Broadcom,-0.0048590989935035,0.1359930489424248,0.1506122712756978,2.098665107884212,,,near_52w_high,AVGO is within 5% of its 52-week high.
-2026-06-04,AVGO,Broadcom,-0.0048590989935035,0.1359930489424248,0.1506122712756978,2.098665107884212,,,strong_trend,AVGO is above 20/50/200-day moving averages.
-2026-06-04,ANET,Arista,-0.0054754275015193,0.1299980420968944,0.0101378753881435,0.6087173504513316,,,near_52w_high,ANET is within 5% of its 52-week high.
-2026-06-04,ANET,Arista,-0.0054754275015193,0.1299980420968944,0.0101378753881435,0.6087173504513316,,,strong_trend,ANET is above 20/50/200-day moving averages.
-2026-06-04,CRDO,Credo,-0.0628820694169622,-0.0299687644174109,0.1918249972967045,1.2592086196801635,,,single_stock_big_down,CRDO single-day drop <= -5%.
-2026-06-04,CRDO,Credo,-0.0628820694169622,-0.0299687644174109,0.1918249972967045,1.2592086196801635,,,strong_trend,CRDO is above 20/50/200-day moving averages.
-2026-06-04,TSM,TSMC,-0.0223868901147205,0.0330234217875995,0.087348468338344,0.7772000346722234,,,near_52w_high,TSM is within 5% of its 52-week high.
-2026-06-04,TSM,TSMC,-0.0223868901147205,0.0330234217875995,0.087348468338344,0.7772000346722234,,,strong_trend,TSM is above 20/50/200-day moving averages.
-2026-06-04,ASML,ASML,0.0123081737655015,0.0804132943399764,0.2453813159617015,1.1204407727050518,,,near_52w_high,ASML is within 5% of its 52-week high.
-2026-06-04,ASML,ASML,0.0123081737655015,0.0804132943399764,0.2453813159617015,1.1204407727050518,,,strong_trend,ASML is above 20/50/200-day moving averages.
-2026-06-04,ETN,Eaton,0.0085963229248235,0.0365184352097922,-0.0001562549123951,0.8033668407479164,,,near_52w_high,ETN is within 5% of its 52-week high.
-2026-06-04,ETN,Eaton,0.0085963229248235,0.0365184352097922,-0.0001562549123951,0.8033668407479164,,,strong_trend,ETN is above 20/50/200-day moving averages.
-2026-06-04,,,-0.01505097022151897,0.02879952922628608,0.04955292366311969,1.0141988662754726,theme,AI Infrastructure,group_summary,"theme=AI Infrastructure: avg daily return=-1.51%, avg weekly return=2.88%, avg volume ratio=1.01"
-2026-06-04,,,-0.0198423025241781,-0.0742690972196528,-0.1663129866907797,1.0161248919629884,subtheme,Energy,group_summary,"subtheme=Energy: avg daily return=-1.98%, avg weekly return=-7.43%, avg volume ratio=1.02"
-2026-06-04,,,0.0123081737655015,0.0804132943399764,0.2453813159617015,1.1204407727050518,subtheme,Equipment,group_summary,"subtheme=Equipment: avg daily return=1.23%, avg weekly return=8.04%, avg volume ratio=1.12"
-2026-06-04,,,-0.0223868901147205,0.0330234217875995,0.087348468338344,0.7772000346722234,subtheme,Foundry,group_summary,"subtheme=Foundry: avg daily return=-2.24%, avg weekly return=3.30%, avg volume ratio=0.78"
-2026-06-04,,,-0.0362176064040619,0.0101128590534353,0.0819730180506219,0.9065925855391092,subtheme,GPU,group_summary,"subtheme=GPU: avg daily return=-3.62%, avg weekly return=1.01%, avg volume ratio=0.91"
-2026-06-04,,,-0.0051672632475114,0.13299554551965959,0.08037507333192065,1.3536912291677716,subtheme,Networking,group_summary,"subtheme=Networking: avg daily return=-0.52%, avg weekly return=13.30%, avg volume ratio=1.35"
-2026-06-04,,,-0.0628820694169622,-0.0299687644174109,0.1918249972967045,1.2592086196801635,subtheme,Optical,group_summary,"subtheme=Optical: avg daily return=-6.29%, avg weekly return=-3.00%, avg volume ratio=1.26"
-2026-06-04,,,-0.0037181603419152325,0.0008974958931980322,-0.035145240996412204,0.7850130999532162,subtheme,Power,group_summary,"subtheme=Power: avg daily return=-0.37%, avg weekly return=0.09%, avg volume ratio=0.79"
+2026-06-04,AVGO,Broadcom,-0.125868593246218,-0.0179801752346319,-0.0197725149267352,3.086239895195548,,,single_stock_big_down,AVGO single-day drop <= -5%.
+2026-06-04,AVGO,Broadcom,-0.125868593246218,-0.0179801752346319,-0.0197725149267352,3.086239895195548,,,volume_down,AVGO fell with high volume.
+2026-06-04,ANET,Arista,-0.0479440319117582,0.069169768396019,-0.0247327381252253,0.7499037856601203,,,strong_trend,ANET is above 20/50/200-day moving averages.
+2026-06-04,CRDO,Credo,0.0135134846878126,-0.0218124846880268,0.1236244860790849,0.9619734023188712,,,strong_trend,CRDO is above 20/50/200-day moving averages.
+2026-06-04,TSM,TSMC,0.0188463462417654,0.0472156210700158,0.1280647278127784,0.8562910137380983,,,near_52w_high,TSM is within 5% of its 52-week high.
+2026-06-04,TSM,TSMC,0.0188463462417654,0.0472156210700158,0.1280647278127784,0.8562910137380983,,,strong_trend,TSM is above 20/50/200-day moving averages.
+2026-06-04,ASML,ASML,0.0180205667505826,0.094471779474472,0.2179953962644754,1.382291720353545,,,near_52w_high,ASML is within 5% of its 52-week high.
+2026-06-04,ASML,ASML,0.0180205667505826,0.094471779474472,0.2179953962644754,1.382291720353545,,,strong_trend,ASML is above 20/50/200-day moving averages.
+2026-06-04,ETN,Eaton,-0.0061727075716647,0.0414738090483699,0.0216785291357628,0.7039335655332734,,,near_52w_high,ETN is within 5% of its 52-week high.
+2026-06-04,ETN,Eaton,-0.0061727075716647,0.0414738090483699,0.0216785291357628,0.7039335655332734,,,strong_trend,ETN is above 20/50/200-day moving averages.
+2026-06-04,,,-0.01398644889242658,0.015546014865814212,0.02161155020819697,1.143957630265096,theme,AI Infrastructure,group_summary,"theme=AI Infrastructure: avg daily return=-1.40%, avg weekly return=1.55%, avg volume ratio=1.14"
+2026-06-04,,,-0.0099161577358248,-0.0758618329988917,-0.1729571072288277,0.7703428250318162,subtheme,Energy,group_summary,"subtheme=Energy: avg daily return=-0.99%, avg weekly return=-7.59%, avg volume ratio=0.77"
+2026-06-04,,,0.0180205667505826,0.094471779474472,0.2179953962644754,1.382291720353545,subtheme,Equipment,group_summary,"subtheme=Equipment: avg daily return=1.80%, avg weekly return=9.45%, avg volume ratio=1.38"
+2026-06-04,,,0.0188463462417654,0.0472156210700158,0.1280647278127784,0.8562910137380983,subtheme,Foundry,group_summary,"subtheme=Foundry: avg daily return=1.88%, avg weekly return=4.72%, avg volume ratio=0.86"
+2026-06-04,,,0.0182072347478898,0.0205834476644544,0.1127735555323632,0.9572649691492048,subtheme,GPU,group_summary,"subtheme=GPU: avg daily return=1.82%, avg weekly return=2.06%, avg volume ratio=0.96"
+2026-06-04,,,-0.08690631257898809,0.025594796580693552,-0.02225262652598025,1.918071840427834,subtheme,Networking,group_summary,"subtheme=Networking: avg daily return=-8.69%, avg weekly return=2.56%, avg volume ratio=1.92"
+2026-06-04,,,0.0135134846878126,-0.0218124846880268,0.1236244860790849,0.9619734023188712,subtheme,Optical,group_summary,"subtheme=Optical: avg daily return=1.35%, avg weekly return=-2.18%, avg volume ratio=0.96"
+2026-06-04,,,-0.008241112819505068,0.013224674991577099,-0.049626767775314634,0.8917562304012524,subtheme,Power,group_summary,"subtheme=Power: avg daily return=-0.82%, avg weekly return=1.32%, avg volume ratio=0.89"
