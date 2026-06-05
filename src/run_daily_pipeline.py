@@ -33,6 +33,7 @@ from pathlib import Path
 import subprocess
 import sys
 from datetime import datetime
+from send_email import send_email
 
 
 # 项目根目录：
@@ -105,6 +106,21 @@ def main() -> None:
 
     print("\nDaily pipeline completed successfully.")
     print(f"End time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    # 发送完成通知邮件。
+    # 这里复用 src/send_email.py 里的 send_email 函数。
+    send_email(
+        subject="Investment OS Daily Pipeline Completed",
+        body=(
+            "Daily pipeline completed successfully.\n\n"
+            f"Run time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            "Generated files:\n"
+            "- data/prices.csv\n"
+            "- data/prices_history.csv\n"
+            "- data/sector_strength.csv\n"
+            "- data/sector_strength_history.csv\n"
+            "- data/daily_market_signals.csv\n"
+        ),
+    )
 
 
 if __name__ == "__main__":
