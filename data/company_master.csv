@@ -9,3 +9,20 @@ VRT,Vertiv,Industrials,Electrical Equipment,AI Infrastructure,Power,Power Infras
 ETN,Eaton,Industrials,Electrical Equipment,AI Infrastructure,Power,Power Infrastructure,8
 GEV,GE Vernova,Industrials,Power Equipment,AI Infrastructure,Power,Grid Infrastructure,7
 CEG,Constellation Energy,Utilities,Power Generation,AI Infrastructure,Energy,Power Supply,6
+NBIS,Nebius,Technology,AI Cloud Infrastructure,AI Infrastructure,NeoCloud,AI Cloud,7
+CRWV,CoreWeave,Technology,AI Cloud Infrastructure,AI Infrastructure,NeoCloud,AI Cloud,8
+MRVL,Marvell,Technology,Semiconductor,AI Infrastructure,Networking,Connectivity,8
+COHR,Coherent,Technology,Optical Components,AI Infrastructure,Optical,Connectivity,7
+NOK,Nokia,Technology,Telecom Infrastructure,AI Infrastructure,AI-RAN,Telecom Edge,5
+TEAM,Atlassian,Technology,Enterprise Software,Software,Developer Tools,SaaS,8
+DDOG,Datadog,Technology,Observability Software,Software,Cloud Software,SaaS,9
+RDW,Redwire,Industrials,Space Infrastructure,Space Economy,Space Infrastructure,Space Hardware,6
+PL,Planet Labs,Technology,Earth Observation,Space Economy,Satellite Data,Space Software,6
+UUUU,Energy Fuels,Energy,Nuclear Fuel,Nuclear,Nuclear Fuel,Upstream Nuclear,6
+SMR,NuScale Power,Industrials,Small Modular Reactor,Nuclear,SMR,Reactor Developer,6
+OKLO,Oklo,Industrials,Advanced Nuclear,Nuclear,SMR,Reactor Developer,7
+RGTI,Rigetti Computing,Technology,Quantum Computing,Quantum,Quantum Hardware,Quantum Hardware,4
+QBTS,D-Wave Quantum,Technology,Quantum Computing,Quantum,Quantum Hardware,Quantum Hardware,4
+IONQ,IonQ,Technology,Quantum Computing,Quantum,Quantum Hardware,Quantum Hardware,6
+MU,Micron,Technology,Memory,AI Infrastructure,Memory,HBM,9
+SNDK,Sandisk,Technology,Memory,AI Infrastructure,Memory,NAND,6

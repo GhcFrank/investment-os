@@ -1,26 +1,26 @@
 AI Infrastructure
-
 ├── GPU
 ├── Networking
 ├── Optical
 ├── Memory
+├── NeoCloud
 ├── Power
-├── Cooling
+├── Energy
 ├── Foundry
-└── Packaging
+├── Equipment
+└── AI-RAN
 
-GPU
+Software
+├── Developer Tools
+└── Cloud Software
 
-├── Training
-├── Inference
+Nuclear
+├── Nuclear Fuel
+└── SMR
 
-Networking
+Quantum
+└── Quantum Hardware
 
-├── Ethernet
-├── InfiniBand
-
-Optical
-
-├── DSP
-├── Transceiver
-├── Silicon Photonics
+Space Economy
+├── Space Infrastructure
+└── Satellite Data
