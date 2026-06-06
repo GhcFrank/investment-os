@@ -19,6 +19,11 @@ run_daily_pipeline.py
    -> src/daily_market_monitor.py
    -> 输出 data/daily_market_signals.csv
 
+4. 检查明天是否有财报
+   -> src/check_earnings_calendar.py
+   -> 如果命中，发送邮件提醒
+   -> 更新 data/earnings_alert_history.csv
+
 为什么要有这个文件？
 
 以前 GitHub Actions 需要分别运行多个脚本。
@@ -94,6 +99,7 @@ def main() -> None:
         BASE_DIR / "src" / "update_prices.py",
         BASE_DIR / "src" / "build_sector_strength.py",
         BASE_DIR / "src" / "daily_market_monitor.py",
+        BASE_DIR / "src" / "check_earnings_calendar.py",
     ]
 
     for script in scripts:
@@ -119,6 +125,7 @@ def main() -> None:
             "- data/sector_strength.csv\n"
             "- data/sector_strength_history.csv\n"
             "- data/daily_market_signals.csv\n"
+            "- data/earnings_alert_history.csv (when an alert is sent)\n"
         ),
     )
 

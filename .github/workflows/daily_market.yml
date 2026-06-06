@@ -47,6 +47,7 @@ jobs:
           git add data/sector_strength.csv
           git add data/sector_strength_history.csv
           git add data/daily_market_signals.csv
+          git add data/earnings_alert_history.csv
 
           git commit -m "Update daily market data" || echo "No changes to commit"
           git push
