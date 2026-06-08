@@ -2,10 +2,11 @@
 Shared helpers for maintaining daily CSV history files.
 """
 
-from datetime import datetime
 from pathlib import Path
 
 import pandas as pd
+
+from utils.date_utils import today_et_str
 
 
 def upsert_daily_history(
@@ -38,7 +39,7 @@ def upsert_daily_history(
     history_df.insert(
         0,
         "date",
-        datetime.now().strftime("%Y-%m-%d"),
+        today_et_str(),
     )
 
     if history_file.exists():

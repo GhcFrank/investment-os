@@ -11,9 +11,10 @@ daily_market_monitor.py
 """
 
 from pathlib import Path
-from datetime import datetime
 
 import pandas as pd
+
+from utils.date_utils import today_et_str
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -85,7 +86,7 @@ def build_theme_signals(df: pd.DataFrame) -> pd.DataFrame:
         for group_name, group_df in grouped:
             rows.append(
                 {
-                    "signal_date": datetime.now().strftime("%Y-%m-%d"),
+                    "signal_date": today_et_str(),
                     "signal_type": "group_summary",
                     "group_type": group_col,
                     "group_name": group_name,
@@ -119,7 +120,7 @@ def build_stock_signal_rows(df: pd.DataFrame) -> pd.DataFrame:
         company = row.get("company", "")
 
         base_info = {
-            "signal_date": datetime.now().strftime("%Y-%m-%d"),
+            "signal_date": today_et_str(),
             "ticker": ticker,
             "company": company,
             "daily_return": row.get("daily_return"),

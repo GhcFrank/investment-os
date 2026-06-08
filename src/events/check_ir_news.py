@@ -12,7 +12,6 @@ check_ir_news.py
 先做到“发现新 IR 新闻并提醒”，不做深度分析。
 """
 
-from datetime import datetime
 from pathlib import Path
 from urllib.parse import urljoin
 import hashlib
@@ -22,6 +21,7 @@ import requests
 from bs4 import BeautifulSoup
 
 from utils.send_email import send_email
+from utils.date_utils import now_et_str
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -210,9 +210,7 @@ def extract_news_items(
                 "title": title,
                 "event_date": "",
                 "url": absolute_url,
-                "first_seen_at": datetime.now().strftime(
-                    "%Y-%m-%d %H:%M:%S"
-                ),
+                "first_seen_at": now_et_str(),
                 "source_url": source_url,
             }
         )

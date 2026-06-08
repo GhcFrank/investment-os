@@ -12,12 +12,11 @@ update_prices.py
 """
 
 from pathlib import Path
-from datetime import datetime
-
 import pandas as pd
 import yfinance as yf
 
 from market_data.history_utils import upsert_daily_history
+from utils.date_utils import today_et_str
 
 
 # 项目根目录：
@@ -126,7 +125,7 @@ def calculate_price_features(ticker: str) -> dict:
         "latest_volume": latest_volume,
         "avg_volume_20d": avg_volume_20d,
         "volume_ratio": volume_ratio,
-        "updated_at": datetime.now().strftime("%Y-%m-%d"),
+        "updated_at": today_et_str(),
     }
 
 

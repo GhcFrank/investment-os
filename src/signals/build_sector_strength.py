@@ -35,11 +35,10 @@ sector_rotation.py
 """
 
 from pathlib import Path
-from datetime import datetime
-
 import pandas as pd
 
 from market_data.history_utils import upsert_daily_history
+from utils.date_utils import today_et_str
 
 
 # ============================================================
@@ -169,8 +168,7 @@ def calculate_sector_scores(
     )
 
     grouped["updated_at"] = (
-        datetime.now()
-        .strftime("%Y-%m-%d")
+        today_et_str()
     )
 
     # ========================================================

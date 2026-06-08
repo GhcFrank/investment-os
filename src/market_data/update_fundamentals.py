@@ -17,6 +17,8 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 
+from utils.date_utils import today_et_str
+
 
 # BASE_DIR 表示项目根目录，也就是 investment_os 这个文件夹。
 # 假设当前文件路径是：
@@ -87,7 +89,7 @@ def get_company_data(ticker: str) -> dict:
         "ev_to_revenue": info.get("enterpriseToRevenue"),
 
         # 更新时间
-        "updated_at": datetime.now().strftime("%Y-%m-%d"),
+        "updated_at": today_et_str(),
     }
 
 
