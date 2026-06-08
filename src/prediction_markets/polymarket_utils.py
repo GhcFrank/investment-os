@@ -112,24 +112,38 @@ def as_json_string(value) -> str:
         separators=(",", ":"),
     )
 
-
-def to_float(value) -> float | None:
+def to_float(value):
     """
-    Convert API/CSV numeric values to float.
+    把输入值安全转换成 float。
+
+    这个函数要处理几类情况：
+
+    1. None
+    2. 空字符串
+    3. pandas 的 NA / NaN
+    4. 普通数字
+    5. 字符串数字，例如 "0.57"
+
+    如果无法转换，就返回 None。
     """
 
-    if value is None or value == "":
+    if value is None:
         return None
 
+    # pandas 的 pd.NA / NaN 需要单独处理。
+    # 不能直接写 value == ""，因为 pd.NA 做布尔判断会报错。
     try:
         if pd.isna(value):
             return None
-    except TypeError:
+    except Exception:
         pass
+
+    if value == "":
+        return None
 
     try:
         return float(value)
-    except (TypeError, ValueError):
+    except Exception:
         return None
 
 
