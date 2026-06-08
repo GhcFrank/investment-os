@@ -24,6 +24,12 @@ run_daily_pipeline.py
    -> 如果命中，发送邮件提醒
    -> 更新 data/earnings_alert_history.csv
 
+5. 更新 Polymarket earnings 预测数据
+   -> src/update_polymarket_earnings_markets.py
+   -> src/match_polymarket_earnings.py
+   -> src/update_polymarket_predictions.py
+   -> src/check_polymarket_prediction_signals.py
+
 为什么要有这个文件？
 
 以前 GitHub Actions 需要分别运行多个脚本。
@@ -100,6 +106,10 @@ def main() -> None:
         BASE_DIR / "src" / "build_sector_strength.py",
         BASE_DIR / "src" / "daily_market_monitor.py",
         BASE_DIR / "src" / "check_earnings_calendar.py",
+        BASE_DIR / "src" / "update_polymarket_earnings_markets.py",
+        BASE_DIR / "src" / "match_polymarket_earnings.py",
+        BASE_DIR / "src" / "update_polymarket_predictions.py",
+        BASE_DIR / "src" / "check_polymarket_prediction_signals.py",
     ]
 
     for script in scripts:
@@ -126,6 +136,10 @@ def main() -> None:
             "- data/sector_strength_history.csv\n"
             "- data/daily_market_signals.csv\n"
             "- data/earnings_alert_history.csv (when an alert is sent)\n"
+            "- data/polymarket_earnings_markets.csv\n"
+            "- data/polymarket_earnings_watchlist.csv\n"
+            "- data/polymarket_predictions.csv\n"
+            "- data/polymarket_predictions_history.csv\n"
         ),
     )
 

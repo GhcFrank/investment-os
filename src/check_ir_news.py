@@ -1,0 +1,354 @@
+"""
+check_ir_news.py
+
+作用：
+1. 读取 data/ir_sources.csv
+2. 抓取公司 Investor Relations 新闻页面
+3. 提取可能的新 press release / news 标题和链接
+4. 和 data/ir_events.csv 对比，避免重复提醒
+5. 如果发现新事件，发送邮件提醒
+
+第一版目标：
+先做到“发现新 IR 新闻并提醒”，不做深度分析。
+"""
+
+from datetime import datetime
+from pathlib import Path
+from urllib.parse import urljoin
+import hashlib
+
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+
+from send_email import send_email
+
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+
+IR_SOURCES_FILE = BASE_DIR / "data" / "ir_sources.csv"
+IR_EVENTS_FILE = BASE_DIR / "data" / "ir_events.csv"
+
+USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/120.0 Safari/537.36"
+)
+
+
+def make_event_id(ticker: str, title: str, url: str) -> str:
+    """
+    生成唯一事件 ID。
+
+    同一家公司、同一标题、同一链接，会生成同一个 event_id。
+    """
+
+    raw = f"{ticker}|{title}|{url}"
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+
+
+def load_existing_events() -> pd.DataFrame:
+    """
+    读取已经记录过的 IR 事件。
+
+    如果文件不存在或为空，返回空 DataFrame。
+    """
+
+    columns = [
+        "event_id",
+        "ticker",
+        "company",
+        "title",
+        "event_date",
+        "url",
+        "first_seen_at",
+        "source_url",
+    ]
+
+    if not IR_EVENTS_FILE.exists():
+        return pd.DataFrame(columns=columns)
+
+    try:
+        return pd.read_csv(IR_EVENTS_FILE)
+
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame(columns=columns)
+
+
+def fetch_html(url: str) -> str:
+    """
+    下载网页 HTML。
+    """
+
+    response = requests.get(
+        url,
+        headers={
+            "User-Agent": USER_AGENT,
+            "Accept": (
+                "text/html,application/xhtml+xml,application/xml;"
+                "q=0.9,image/avif,image/webp,*/*;q=0.8"
+            ),
+            "Accept-Language": "en-US,en;q=0.9",
+        },
+        timeout=60,
+    )
+
+    response.raise_for_status()
+
+    return response.text
+
+
+def looks_like_news_title(text: str) -> bool:
+    """
+    判断一段文字是否像 IR 新闻标题。
+
+    第一版用关键词规则，不追求完美。
+    """
+
+    if not text:
+        return False
+
+    clean_text = " ".join(text.split())
+
+    if len(clean_text) < 20:
+        return False
+
+    if len(clean_text) > 250:
+        return False
+
+    lower_text = clean_text.lower()
+
+    blacklist_keywords = [
+        "gpu technology conference",
+        "contact us",
+        "investor relations",
+        "financial information",
+        "stock information",
+        "corporate governance",
+        "email alerts",
+        "rss",
+        "privacy policy",
+        "terms of use",
+        "declares quarterly dividend",
+        "dividend payment",
+    ]
+
+    if any(keyword in lower_text for keyword in blacklist_keywords):
+        return False
+
+    keywords = [
+        "announces",
+        "reports",
+        "reported",
+        "launches",
+        "introduces",
+        "unveils",
+        "appoints",
+        "prices",
+        "commences",
+        "completes",
+        "earnings",
+        "results",
+        "quarter",
+        "conference",
+        "investor",
+        "guidance",
+        "partnership",
+        "collaboration",
+        "agreement",
+        "availability",
+        "acquisition",
+    ]
+
+    return any(keyword in lower_text for keyword in keywords)
+
+
+def extract_news_items(
+    ticker: str,
+    company: str,
+    source_url: str,
+    html: str,
+) -> list[dict]:
+    """
+    从 IR 页面里提取可能的新闻条目。
+
+    第一版策略：
+    1. 找所有 <a> 链接
+    2. 取链接文字作为标题
+    3. 用关键词过滤
+    4. 生成 event_id
+    """
+
+    soup = BeautifulSoup(html, "html.parser")
+
+    news_items = []
+
+    for link in soup.find_all("a"):
+        title = link.get_text(" ", strip=True)
+
+        if not looks_like_news_title(title):
+            continue
+
+        href = link.get("href")
+
+        if not href:
+            continue
+
+        absolute_url = urljoin(source_url, href)
+
+        event_id = make_event_id(
+            ticker=ticker,
+            title=title,
+            url=absolute_url,
+        )
+
+        news_items.append(
+            {
+                "event_id": event_id,
+                "ticker": ticker,
+                "company": company,
+                "title": title,
+                "event_date": "",
+                "url": absolute_url,
+                "first_seen_at": datetime.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+                "source_url": source_url,
+            }
+        )
+
+    unique_items = {}
+
+    for item in news_items:
+        unique_items[item["event_id"]] = item
+
+    return list(unique_items.values())
+
+
+def build_email_body(new_events: list[dict]) -> str:
+    """
+    生成邮件正文。
+    """
+
+    lines = [
+        "Investment OS detected new IR news:",
+        "",
+    ]
+
+    for event in new_events:
+        lines.append(f"{event['ticker']} | {event['company']}")
+        lines.append(f"Title: {event['title']}")
+        lines.append(f"URL: {event['url']}")
+        lines.append("")
+
+    lines.append("This alert was generated by Investment OS.")
+
+    return "\n".join(lines)
+
+
+def main() -> None:
+    """
+    主程序入口。
+    """
+
+    if not IR_SOURCES_FILE.exists():
+        raise FileNotFoundError(
+            f"Cannot find input file: {IR_SOURCES_FILE}"
+        )
+
+    sources = pd.read_csv(IR_SOURCES_FILE)
+
+    required_columns = [
+        "ticker",
+        "company",
+        "source_type",
+        "url",
+    ]
+
+    for column in required_columns:
+        if column not in sources.columns:
+            raise ValueError(
+                f"ir_sources.csv must contain column: {column}"
+            )
+
+    existing_events = load_existing_events()
+    existing_event_ids = set(existing_events["event_id"].astype(str))
+
+    all_events = []
+    new_events = []
+
+    for _, row in sources.iterrows():
+        ticker = str(row["ticker"]).strip().upper()
+        company = str(row["company"]).strip()
+        source_type = str(row["source_type"]).strip().lower()
+        url = str(row["url"]).strip()
+
+        if not ticker or not url:
+            continue
+
+        if source_type != "html":
+            print(f"Skipping unsupported source_type for {ticker}: {source_type}")
+            continue
+
+        print(f"Checking IR news for {ticker}: {url}")
+
+        try:
+            html = fetch_html(url)
+
+            items = extract_news_items(
+                ticker=ticker,
+                company=company,
+                source_url=url,
+                html=html,
+            )
+
+        except Exception as error:
+            print(f"Warning: failed to fetch IR news for {ticker}: {error}")
+            continue
+
+        for item in items:
+            all_events.append(item)
+
+            if item["event_id"] not in existing_event_ids:
+                new_events.append(item)
+
+    if not all_events:
+        print("No IR news items extracted.")
+        return
+
+    all_events_df = pd.DataFrame(all_events)
+
+    combined = pd.concat(
+        [existing_events, all_events_df],
+        ignore_index=True,
+    )
+
+    combined = combined.drop_duplicates(
+        subset=["event_id"],
+        keep="first",
+    )
+
+    combined.to_csv(
+        IR_EVENTS_FILE,
+        index=False,
+    )
+
+    print(f"\nSaved IR events to: {IR_EVENTS_FILE}")
+
+    if not new_events:
+        print("No new IR events detected.")
+        return
+
+    subject = f"Investment OS IR News Alert: {len(new_events)} new event(s)"
+    body = build_email_body(new_events)
+
+    send_email(
+        subject=subject,
+        body=body,
+    )
+
+    print(f"Sent IR news email with {len(new_events)} new event(s).")
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,5 @@
+ticker,company,source_type,url
+NVDA,NVIDIA,html,https://investor.nvidia.com/news/default.aspx
+MRVL,Marvell,html,https://investor.marvell.com/news-releases
+MU,Micron,html,https://investors.micron.com/latest-news-english
+DDOG,Datadog,html,https://investors.datadoghq.com/news-releases
