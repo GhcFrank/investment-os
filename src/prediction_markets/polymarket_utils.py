@@ -13,7 +13,7 @@ import pandas as pd
 import requests
 
 
-BASE_DIR = Path(__file__).resolve().parents[1]
+BASE_DIR = Path(__file__).resolve().parents[2]
 POLYMARKET_GAMMA_BASE_URL = "https://gamma-api.polymarket.com"
 MARKET_TIMEZONE = ZoneInfo("America/New_York")
 

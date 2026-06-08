@@ -31,7 +31,7 @@ jobs:
 
       - name: Run Daily Pipeline
         run: |
-          python src/run_daily_pipeline.py
+          PYTHONPATH=src python src/pipelines/run_daily_pipeline.py
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
@@ -42,16 +42,18 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add data/prices.csv
-          git add data/prices_history.csv
-          git add data/sector_strength.csv
-          git add data/sector_strength_history.csv
-          git add data/daily_market_signals.csv
-          git add data/earnings_alert_history.csv
-          git add data/polymarket_earnings_markets.csv
-          git add data/polymarket_earnings_watchlist.csv
-          git add data/polymarket_predictions.csv
-          git add data/polymarket_predictions_history.csv
+          git add data/market_data/prices.csv
+          git add data/market_data/prices_history.csv
+          git add data/signals/sector_strength.csv
+          git add data/signals/sector_strength_history.csv
+          git add data/signals/daily_market_signals.csv
+          git add data/events/earnings_calendar.csv
+          git add data/events/earnings_alert_history.csv
+          git add data/events/ir_events.csv
+          git add data/prediction_markets/polymarket_earnings_markets.csv
+          git add data/prediction_markets/polymarket_earnings_watchlist.csv
+          git add data/prediction_markets/polymarket_predictions.csv
+          git add data/prediction_markets/polymarket_predictions_history.csv
 
           git commit -m "Update daily market data" || echo "No changes to commit"
           git push

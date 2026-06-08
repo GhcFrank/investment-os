@@ -3,7 +3,7 @@ build_sector_strength.py
 
 作用：
 
-1. 读取 data/prices.csv
+1. 读取 data/market_data/prices.csv
 
 2. 按 subtheme 聚合
 
@@ -19,11 +19,11 @@ Energy
 
 4. 输出：
 
-data/sector_strength.csv
+data/signals/sector_strength.csv
 
 5. 保存历史记录：
 
-data/sector_strength_history.csv
+data/signals/sector_strength_history.csv
 
 未来：
 
@@ -39,7 +39,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from history_utils import upsert_daily_history
+from market_data.history_utils import upsert_daily_history
 
 
 # ============================================================
@@ -47,23 +47,24 @@ from history_utils import upsert_daily_history
 # ============================================================
 
 # 当前文件：
-# investment_os/src/build_sector_strength.py
+# investment_os/src/signals/build_sector_strength.py
 #
-# parents[1]
+# parents[2]
 # ->
 # investment_os
-BASE_DIR = Path(__file__).resolve().parents[1]
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 # 输入文件
-INPUT_FILE = BASE_DIR / "data" / "prices.csv"
+INPUT_FILE = BASE_DIR / "data" / "market_data" / "prices.csv"
 
 # 当天最新结果
-OUTPUT_FILE = BASE_DIR / "data" / "sector_strength.csv"
+OUTPUT_FILE = BASE_DIR / "data" / "signals" / "sector_strength.csv"
 
 # 历史数据库
 HISTORY_FILE = (
     BASE_DIR
     / "data"
+    / "signals"
     / "sector_strength_history.csv"
 )
 

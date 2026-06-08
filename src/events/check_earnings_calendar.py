@@ -2,7 +2,7 @@
 check_earnings_calendar.py
 
 作用：
-1. 读取 data/company_master.csv
+1. 读取 data/master/company_master.csv
 2. 使用 yfinance 查询每只股票的下一次 earnings date
 3. 如果某家公司明天发布财报，发送邮件提醒
 4. 保存当前查到的 earnings calendar 快照
@@ -20,24 +20,24 @@ from zoneinfo import ZoneInfo
 import pandas as pd
 import yfinance as yf
 
-from send_email import send_email
+from utils.send_email import send_email
 
 
 # ============================================================
 # 路径设置
 # ============================================================
 
-BASE_DIR = Path(__file__).resolve().parents[1]
+BASE_DIR = Path(__file__).resolve().parents[2]
 
-INPUT_FILE = BASE_DIR / "data" / "company_master.csv"
+INPUT_FILE = BASE_DIR / "data" / "master" / "company_master.csv"
 
 # 保存每次查到的 earnings calendar 快照。
 # 这个文件方便你回看：系统当时查到了哪些财报日期。
-CALENDAR_FILE = BASE_DIR / "data" / "earnings_calendar.csv"
+CALENDAR_FILE = BASE_DIR / "data" / "events" / "earnings_calendar.csv"
 
 # 保存已经发过提醒的记录。
 # 这个文件用于避免同一家公司、同一个财报日期重复提醒。
-HISTORY_FILE = BASE_DIR / "data" / "earnings_alert_history.csv"
+HISTORY_FILE = BASE_DIR / "data" / "events" / "earnings_alert_history.csv"
 
 MARKET_TIMEZONE = ZoneInfo("America/New_York")
 
@@ -258,7 +258,7 @@ def save_calendar_snapshot(
     保存当前查到的 earnings calendar 快照。
 
     输出：
-        data/earnings_calendar.csv
+        data/events/earnings_calendar.csv
 
     这个文件不是提醒历史。
     它只是记录当前系统看到的每家公司下一次 earnings date。

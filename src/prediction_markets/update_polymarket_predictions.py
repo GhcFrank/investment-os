@@ -2,15 +2,15 @@
 update_polymarket_predictions.py
 
 作用：
-1. 读取 data/polymarket_earnings_watchlist.csv
+1. 读取 data/prediction_markets/polymarket_earnings_watchlist.csv
 2. 只跟踪 enabled=True 的 Polymarket markets
-3. 输出当前预测快照 data/polymarket_predictions.csv
-4. 追加/更新历史 data/polymarket_predictions_history.csv
+3. 输出当前预测快照 data/prediction_markets/polymarket_predictions.csv
+4. 追加/更新历史 data/prediction_markets/polymarket_predictions_history.csv
 """
 
 import pandas as pd
 
-from polymarket_utils import (
+from prediction_markets.polymarket_utils import (
     BASE_DIR,
     fetch_gamma_json,
     normalize_bool,
@@ -21,9 +21,9 @@ from polymarket_utils import (
 )
 
 
-WATCHLIST_FILE = BASE_DIR / "data" / "polymarket_earnings_watchlist.csv"
-SNAPSHOT_FILE = BASE_DIR / "data" / "polymarket_predictions.csv"
-HISTORY_FILE = BASE_DIR / "data" / "polymarket_predictions_history.csv"
+WATCHLIST_FILE = BASE_DIR / "data" / "prediction_markets" / "polymarket_earnings_watchlist.csv"
+SNAPSHOT_FILE = BASE_DIR / "data" / "prediction_markets" / "polymarket_predictions.csv"
+HISTORY_FILE = BASE_DIR / "data" / "prediction_markets" / "polymarket_predictions_history.csv"
 
 
 OUTPUT_COLUMNS = [

@@ -2,10 +2,10 @@
 daily_market_monitor.py
 
 作用：
-1. 读取 data/prices.csv
+1. 读取 data/market_data/prices.csv
 2. 检测每日单股异动
 3. 检测主题/板块整体强弱
-4. 输出 data/daily_market_signals.csv
+4. 输出 data/signals/daily_market_signals.csv
 
 这个脚本是 Research OS 的“每日收盘异动监控器”。
 """
@@ -16,10 +16,10 @@ from datetime import datetime
 import pandas as pd
 
 
-BASE_DIR = Path(__file__).resolve().parents[1]
+BASE_DIR = Path(__file__).resolve().parents[2]
 
-INPUT_FILE = BASE_DIR / "data" / "prices.csv"
-OUTPUT_FILE = BASE_DIR / "data" / "daily_market_signals.csv"
+INPUT_FILE = BASE_DIR / "data" / "market_data" / "prices.csv"
+OUTPUT_FILE = BASE_DIR / "data" / "signals" / "daily_market_signals.csv"
 
 
 def add_stock_signals(df: pd.DataFrame) -> pd.DataFrame:

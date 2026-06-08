@@ -11,13 +11,13 @@ from datetime import date
 
 import pandas as pd
 
-from polymarket_utils import BASE_DIR, now_et, today_et, to_float
-from send_email import send_email
+from prediction_markets.polymarket_utils import BASE_DIR, now_et, today_et, to_float
+from utils.send_email import send_email
 
 
-SNAPSHOT_FILE = BASE_DIR / "data" / "polymarket_predictions.csv"
-HISTORY_FILE = BASE_DIR / "data" / "polymarket_predictions_history.csv"
-EARNINGS_CALENDAR_FILE = BASE_DIR / "data" / "earnings_calendar.csv"
+SNAPSHOT_FILE = BASE_DIR / "data" / "prediction_markets" / "polymarket_predictions.csv"
+HISTORY_FILE = BASE_DIR / "data" / "prediction_markets" / "polymarket_predictions_history.csv"
+EARNINGS_CALENDAR_FILE = BASE_DIR / "data" / "events" / "earnings_calendar.csv"
 
 ONE_DAY_PROB_THRESHOLD = 0.10
 FIVE_DAY_PROB_THRESHOLD = 0.20

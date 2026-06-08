@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 
 
 # 项目根目录：investment_os
-BASE_DIR = Path(__file__).resolve().parents[1]
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 # .env 文件路径
 ENV_FILE = BASE_DIR / ".env"

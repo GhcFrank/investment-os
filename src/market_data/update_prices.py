@@ -2,10 +2,10 @@
 update_prices.py
 
 这个脚本的作用：
-1. 读取 data/company_master.csv 里的股票列表
+1. 读取 data/master/company_master.csv 里的股票列表
 2. 使用 yfinance 下载每只股票最近一年的日线价格和成交量
 3. 计算每日涨跌幅、周涨跌幅、月涨跌幅、均线、成交量异动等指标
-4. 输出 data/prices.csv
+4. 输出 data/market_data/prices.csv
 
 这个文件是 Research OS 的“价格数据层”。
 之后 daily_market_monitor.py 和 weekly_review.py 都会依赖它。
@@ -17,24 +17,25 @@ from datetime import datetime
 import pandas as pd
 import yfinance as yf
 
-from history_utils import upsert_daily_history
+from market_data.history_utils import upsert_daily_history
 
 
 # 项目根目录：
-# 当前文件在 investment_os/src/update_prices.py
-# parents[1] 表示向上两层，回到 investment_os
-BASE_DIR = Path(__file__).resolve().parents[1]
+# 当前文件在 investment_os/src/market_data/update_prices.py
+# parents[2] 表示向上两层，回到 investment_os
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 # 输入文件：股票主表
-INPUT_FILE = BASE_DIR / "data" / "company_master.csv"
+INPUT_FILE = BASE_DIR / "data" / "master" / "company_master.csv"
 
 # 输出文件：价格指标表
-OUTPUT_FILE = BASE_DIR / "data" / "prices.csv"
+OUTPUT_FILE = BASE_DIR / "data" / "market_data" / "prices.csv"
 
 # 历史价格指标表
 HISTORY_FILE = (
     BASE_DIR
     / "data"
+    / "market_data"
     / "prices_history.csv"
 )
 

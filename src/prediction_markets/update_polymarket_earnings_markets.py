@@ -5,7 +5,7 @@ update_polymarket_earnings_markets.py
 1. 从 Polymarket Gamma API 抓取 earnings tag 下的 active/open events
 2. 过滤 beat consensus / estimates 相关 markets
 3. 只保留 company_master.csv 里公司相关的 markets
-4. 输出 data/polymarket_earnings_markets.csv
+4. 输出 data/prediction_markets/polymarket_earnings_markets.csv
 
 注意：
 这个脚本不写预测历史。
@@ -17,7 +17,7 @@ import re
 
 import pandas as pd
 
-from polymarket_utils import (
+from prediction_markets.polymarket_utils import (
     BASE_DIR,
     as_json_string,
     build_polymarket_url,
@@ -26,8 +26,8 @@ from polymarket_utils import (
 )
 
 
-OUTPUT_FILE = BASE_DIR / "data" / "polymarket_earnings_markets.csv"
-COMPANY_FILE = BASE_DIR / "data" / "company_master.csv"
+OUTPUT_FILE = BASE_DIR / "data" / "prediction_markets" / "polymarket_earnings_markets.csv"
+COMPANY_FILE = BASE_DIR / "data" / "master" / "company_master.csv"
 
 PAGE_LIMIT = 100
 MAX_EVENTS = 5000

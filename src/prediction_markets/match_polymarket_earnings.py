@@ -18,12 +18,12 @@ import re
 
 import pandas as pd
 
-from polymarket_utils import BASE_DIR
+from prediction_markets.polymarket_utils import BASE_DIR
 
 
-COMPANY_FILE = BASE_DIR / "data" / "company_master.csv"
-MARKETS_FILE = BASE_DIR / "data" / "polymarket_earnings_markets.csv"
-OUTPUT_FILE = BASE_DIR / "data" / "polymarket_earnings_watchlist.csv"
+COMPANY_FILE = BASE_DIR / "data" / "master" / "company_master.csv"
+MARKETS_FILE = BASE_DIR / "data" / "prediction_markets" / "polymarket_earnings_markets.csv"
+OUTPUT_FILE = BASE_DIR / "data" / "prediction_markets" / "polymarket_earnings_watchlist.csv"
 
 
 def normalize_text(value: str) -> str:

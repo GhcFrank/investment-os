@@ -2,9 +2,9 @@
 rank_stocks.py
 
 这个脚本的作用：
-1. 读取 data/fundamentals.csv
+1. 读取 data/market_data/fundamentals.csv
 2. 根据增长、毛利率、经营利润率、估值等指标给股票打分
-3. 输出 data/ranked_stocks.csv
+3. 输出 data/market_data/ranked_stocks.csv
 
 注意：
 这不是投资建议，只是一个研究排序工具。
@@ -18,15 +18,15 @@ import pandas as pd
 
 # 找到项目根目录。
 # __file__ 表示当前这个 Python 文件的位置。
-# parents[1] 表示往上走两层：
-# src/rank_stocks.py -> src -> investment_os
-BASE_DIR = Path(__file__).resolve().parents[1]
+# parents[2] 表示往上走两层：
+# src/market_data/rank_stocks.py -> src -> investment_os
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 # 输入文件：基本面数据
-INPUT_FILE = BASE_DIR / "data" / "fundamentals.csv"
+INPUT_FILE = BASE_DIR / "data" / "market_data" / "fundamentals.csv"
 
 # 输出文件：排序后的股票列表
-OUTPUT_FILE = BASE_DIR / "data" / "ranked_stocks.csv"
+OUTPUT_FILE = BASE_DIR / "data" / "market_data" / "ranked_stocks.csv"
 
 
 def min_max_score(series: pd.Series, higher_is_better: bool = True) -> pd.Series:

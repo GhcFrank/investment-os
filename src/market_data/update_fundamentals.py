@@ -2,10 +2,10 @@
 update_fundamentals.py
 
 这个脚本的作用：
-1. 读取 data/company_master.csv
+1. 读取 data/master/company_master.csv
 2. 从 yfinance 获取每只股票的基础财务和估值数据
 3. 把手工维护的公司信息和自动抓取的数据合并
-4. 输出 data/fundamentals.csv
+4. 输出 data/market_data/fundamentals.csv
 
 company_master.csv 是你的“股票主表”。
 fundamentals.csv 是程序生成的“基本面数据表”。
@@ -20,19 +20,19 @@ import yfinance as yf
 
 # BASE_DIR 表示项目根目录，也就是 investment_os 这个文件夹。
 # 假设当前文件路径是：
-# investment_os/src/update_fundamentals.py
+# investment_os/src/market_data/update_fundamentals.py
 #
 # Path(__file__) 是当前 Python 文件的路径。
 # resolve() 把路径转换成完整绝对路径。
-# parents[1] 表示向上走两层：
+# parents[2] 表示向上走两层：
 # update_fundamentals.py -> src -> investment_os
-BASE_DIR = Path(__file__).resolve().parents[1]
+BASE_DIR = Path(__file__).resolve().parents[2]
 
 # 输入文件：你手工维护的股票主表。
-INPUT_FILE = BASE_DIR / "data" / "company_master.csv"
+INPUT_FILE = BASE_DIR / "data" / "master" / "company_master.csv"
 
 # 输出文件：程序自动生成的基本面数据表。
-OUTPUT_FILE = BASE_DIR / "data" / "fundamentals.csv"
+OUTPUT_FILE = BASE_DIR / "data" / "market_data" / "fundamentals.csv"
 
 
 def get_company_data(ticker: str) -> dict:
@@ -96,7 +96,7 @@ def main() -> None:
     主程序入口。
 
     当你运行：
-        python src/update_fundamentals.py
+        python src/market_data/update_fundamentals.py
 
     Python 会从这里开始执行。
     """
@@ -153,7 +153,7 @@ def main() -> None:
         how="left"
     )
 
-    # 保存到 data/fundamentals.csv。
+    # 保存到 data/market_data/fundamentals.csv。
     final_df.to_csv(OUTPUT_FILE, index=False)
 
     print(f"\nSaved fundamentals to: {OUTPUT_FILE}")

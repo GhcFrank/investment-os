@@ -2,10 +2,10 @@
 check_ir_news.py
 
 作用：
-1. 读取 data/ir_sources.csv
+1. 读取 data/master/ir_sources.csv
 2. 抓取公司 Investor Relations 新闻页面
 3. 提取可能的新 press release / news 标题和链接
-4. 和 data/ir_events.csv 对比，避免重复提醒
+4. 和 data/events/ir_events.csv 对比，避免重复提醒
 5. 如果发现新事件，发送邮件提醒
 
 第一版目标：
@@ -21,13 +21,13 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from send_email import send_email
+from utils.send_email import send_email
 
 
-BASE_DIR = Path(__file__).resolve().parents[1]
+BASE_DIR = Path(__file__).resolve().parents[2]
 
-IR_SOURCES_FILE = BASE_DIR / "data" / "ir_sources.csv"
-IR_EVENTS_FILE = BASE_DIR / "data" / "ir_events.csv"
+IR_SOURCES_FILE = BASE_DIR / "data" / "master" / "ir_sources.csv"
+IR_EVENTS_FILE = BASE_DIR / "data" / "events" / "ir_events.csv"
 
 USER_AGENT = (
     "Mozilla/5.0 (X11; Linux x86_64) "
