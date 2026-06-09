@@ -24,7 +24,12 @@ run_daily_pipeline.py
    -> 如果命中，发送邮件提醒
    -> 更新 data/events/earnings_alert_history.csv
 
-5. 更新 Polymarket earnings 预测数据
+5. 检查 SEC EDGAR 重要 filing
+   -> src/events/check_sec_filings.py
+   -> 如果发现新 filing，发送邮件提醒
+   -> 更新 data/events/sec_filings.csv
+
+6. 更新 Polymarket earnings 预测数据
    -> src/prediction_markets/update_polymarket_earnings_markets.py
    -> src/prediction_markets/match_polymarket_earnings.py
    -> src/prediction_markets/update_polymarket_predictions.py
@@ -116,6 +121,7 @@ def main() -> None:
         BASE_DIR / "src" / "signals" / "build_sector_strength.py",
         BASE_DIR / "src" / "signals" / "daily_market_monitor.py",
         BASE_DIR / "src" / "events" / "check_earnings_calendar.py",
+        BASE_DIR / "src" / "events" / "check_sec_filings.py",
         BASE_DIR / "src" / "prediction_markets" / "update_polymarket_earnings_markets.py",
         BASE_DIR / "src" / "prediction_markets" / "match_polymarket_earnings.py",
         BASE_DIR / "src" / "prediction_markets" / "update_polymarket_predictions.py",
@@ -146,6 +152,9 @@ def main() -> None:
             "- data/signals/sector_strength_history.csv\n"
             "- data/signals/daily_market_signals.csv\n"
             "- data/events/earnings_alert_history.csv (when an alert is sent)\n"
+            "- data/events/sec_company_map.csv\n"
+            "- data/events/sec_filings.csv\n"
+            "- data/events/sec_alert_history.csv (when an alert is sent)\n"
             "- data/prediction_markets/polymarket_earnings_markets.csv\n"
             "- data/prediction_markets/polymarket_earnings_watchlist.csv\n"
             "- data/prediction_markets/polymarket_predictions.csv\n"
