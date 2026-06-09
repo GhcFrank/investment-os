@@ -52,7 +52,18 @@ jobs:
           git add data/events/earnings_calendar.csv
           git add data/events/earnings_alert_history.csv
           git add data/events/ir_events.csv
-          git add data/events/
+
+          for file in \
+            data/events/sec_company_map.csv \
+            data/events/sec_filings.csv \
+            data/events/sec_alert_history.csv \
+            data/events/sec_initialized.flag
+          do
+            if [ -f "$file" ]; then
+              git add "$file"
+            fi
+          done
+
           git add data/prediction_markets/polymarket_earnings_markets.csv
           git add data/prediction_markets/polymarket_earnings_watchlist.csv
           git add data/prediction_markets/polymarket_predictions.csv

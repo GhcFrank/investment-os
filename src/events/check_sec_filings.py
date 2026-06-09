@@ -103,10 +103,38 @@ def parse_args() -> argparse.Namespace:
 
 def load_existing_filings() -> pd.DataFrame:
     """
-    Load the SEC filings CSV, handling missing and empty files.
+    Load the SEC filings CSV, handling missing, empty, and incomplete files.
+
+    Missing schema columns are added as blank values so a partially damaged CSV
+    does not crash the alert run. Rows without an accession number are dropped
+    because accession number is the unique key for deduplication.
     """
 
-    return read_csv_safe(SEC_FILINGS_FILE, SEC_FILING_COLUMNS)
+    filings = read_csv_safe(SEC_FILINGS_FILE, SEC_FILING_COLUMNS)
+    missing_columns = [
+        column
+        for column in SEC_FILING_COLUMNS
+        if column not in filings.columns
+    ]
+
+    if missing_columns:
+        print(
+            "Warning: SEC filings CSV is missing columns "
+            f"{missing_columns}. Missing values will be treated as blank."
+        )
+
+        for column in missing_columns:
+            filings[column] = ""
+
+    filings = filings.reindex(columns=SEC_FILING_COLUMNS)
+
+    if filings.empty:
+        return filings
+
+    accession_numbers = filings["accession_number"].fillna("").astype(str).str.strip()
+    filings = filings[accession_numbers != ""]
+
+    return filings.reindex(columns=SEC_FILING_COLUMNS)
 
 
 def load_alert_history() -> pd.DataFrame:
@@ -538,6 +566,10 @@ def run_sec_filing_check() -> None:
         raise RuntimeError("No companies could be matched to SEC CIK values.")
 
     existing_filings = filter_recent_filings(load_existing_filings())
+
+    # Do not use existing_filings.empty here. sec_filings.csv is intentionally
+    # retention-limited to recent rows, so it may be empty even after the system
+    # has already been initialized. Only the flag represents first-run state.
     baseline_mode = not is_sec_baseline_initialized()
 
     incoming_filings = filter_recent_filing_rows(fetch_company_filings(company_map))

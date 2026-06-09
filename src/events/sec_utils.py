@@ -70,7 +70,8 @@ def get_sec_user_agent() -> str:
         raise ValueError(
             "Missing SEC_USER_AGENT environment variable. "
             "For GitHub Actions, create a Repository Secret named "
-            "SEC_USER_AGENT. Example format: 'InvestmentOS contact@example.com'."
+            "SEC_USER_AGENT. For local runs, set SEC_USER_AGENT in .env "
+            "or the process environment."
         )
 
     return user_agent
