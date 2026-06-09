@@ -69,8 +69,8 @@ def get_sec_user_agent() -> str:
     if not user_agent:
         raise ValueError(
             "Missing SEC_USER_AGENT environment variable. "
-            "Set it to a contactable identifier such as "
-            "'InvestmentOS ghcgooder@gmail.com'."
+            "For GitHub Actions, create a Repository Secret named "
+            "SEC_USER_AGENT. Example format: 'InvestmentOS contact@example.com'."
         )
 
     return user_agent

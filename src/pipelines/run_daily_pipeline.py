@@ -155,6 +155,7 @@ def main() -> None:
             "- data/events/sec_company_map.csv\n"
             "- data/events/sec_filings.csv\n"
             "- data/events/sec_alert_history.csv (when an alert is sent)\n"
+            "- data/events/sec_initialized.flag\n"
             "- data/prediction_markets/polymarket_earnings_markets.csv\n"
             "- data/prediction_markets/polymarket_earnings_watchlist.csv\n"
             "- data/prediction_markets/polymarket_predictions.csv\n"

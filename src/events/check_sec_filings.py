@@ -40,6 +40,7 @@ from utils.send_email import send_email  # noqa: E402
 
 SEC_FILINGS_FILE = BASE_DIR / "data" / "events" / "sec_filings.csv"
 SEC_ALERT_HISTORY_FILE = BASE_DIR / "data" / "events" / "sec_alert_history.csv"
+SEC_INITIALIZED_FLAG_FILE = BASE_DIR / "data" / "events" / "sec_initialized.flag"
 
 IMPORTANT_FORMS = {
     "8-K",
@@ -114,6 +115,32 @@ def load_alert_history() -> pd.DataFrame:
     """
 
     return read_csv_safe(SEC_ALERT_HISTORY_FILE, SEC_ALERT_HISTORY_COLUMNS)
+
+
+def is_sec_baseline_initialized() -> bool:
+    """
+    Return whether the SEC baseline has already been initialized.
+
+    The current filings CSV is intentionally not used for this decision. The
+    CSV is retention-limited to recent filings, so it can legitimately become
+    empty after filtering. Treating an empty DataFrame as "first run" would
+    suppress the next real alert by saving it as a fresh baseline.
+    """
+
+    return SEC_INITIALIZED_FLAG_FILE.exists()
+
+
+def mark_sec_baseline_initialized() -> None:
+    """
+    Persist the SEC baseline initialization marker and print its full path.
+    """
+
+    SEC_INITIALIZED_FLAG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    SEC_INITIALIZED_FLAG_FILE.write_text(
+        f"initialized_at={now_timestamp()}\n",
+        encoding="utf-8",
+    )
+    print(f"Saved SEC baseline flag: {SEC_INITIALIZED_FLAG_FILE}")
 
 
 def get_recent_field(recent: dict[str, Any], field: str, index: int) -> str:
@@ -511,11 +538,7 @@ def run_sec_filing_check() -> None:
         raise RuntimeError("No companies could be matched to SEC CIK values.")
 
     existing_filings = filter_recent_filings(load_existing_filings())
-    baseline_mode = (
-        not SEC_FILINGS_FILE.exists()
-        or existing_filings.empty
-        or "accession_number" not in existing_filings.columns
-    )
+    baseline_mode = not is_sec_baseline_initialized()
 
     incoming_filings = filter_recent_filing_rows(fetch_company_filings(company_map))
     combined_filings = merge_filings(
@@ -525,6 +548,7 @@ def run_sec_filing_check() -> None:
 
     if baseline_mode:
         save_filings(combined_filings)
+        mark_sec_baseline_initialized()
         print("Initialized SEC filing baseline. No alerts sent.")
         return
 

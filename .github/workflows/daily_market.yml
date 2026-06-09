@@ -36,6 +36,8 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          # Example secret value format: InvestmentOS contact@example.com
+          SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
 
       - name: Commit Updated Data
         run: |
@@ -50,6 +52,7 @@ jobs:
           git add data/events/earnings_calendar.csv
           git add data/events/earnings_alert_history.csv
           git add data/events/ir_events.csv
+          git add data/events/
           git add data/prediction_markets/polymarket_earnings_markets.csv
           git add data/prediction_markets/polymarket_earnings_watchlist.csv
           git add data/prediction_markets/polymarket_predictions.csv
