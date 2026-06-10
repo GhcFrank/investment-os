@@ -1,2 +1,1 @@
 ticker,company,market_id,question,matched_by,match_score,enabled
-ORCL,Oracle,2387807,Will Oracle (ORCL) beat quarterly earnings?,ticker,100,True
