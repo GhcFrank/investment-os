@@ -70,6 +70,57 @@ Optical Attach Rate Rising
 
 ---
 
+## Stage 3B — Optical Test and Metrology
+
+Type:
+
+Derivative infrastructure layer.
+
+This is not a separate end-demand stage.
+
+It is a required qualification and yield-management layer created by optical adoption.
+
+### Trigger
+
+- 800G to 1.6T transition
+- CPO qualification
+- higher optical channel count
+- higher package value
+- wafer-level testing requirement
+
+### Companies
+
+- KEYS
+- VIAV
+- AEHR
+- FORM
+
+### Signals
+
+- test equipment orders accelerate
+- protocol and compliance software launches increase
+- wafer-level burn-in customers increase
+- CPO-related probe revenue becomes material
+- optical test capex grows faster than module unit volume
+
+### Transmission
+
+GPU
+↓
+Networking
+↓
+Optical Components
+↓
+Higher Speed and Integration
+↓
+Optical Test and Metrology
+
+Optical test is not expected to rise simply because optical-component stock prices rise.
+
+The transmission mechanism is technical complexity, production expansion and qualification intensity.
+
+---
+
 ## Stage 4
 
 NeoCloud

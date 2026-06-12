@@ -2,48 +2,168 @@
 
 Ticker:
 
+Company:
+
+Last Updated:
+
 Theme:
 
 Subtheme:
 
----
+Supply Chain Layer:
 
-# Business
-
-公司干什么
+Research Status:
 
 ---
 
-# Revenue
+## Business
 
-收入来源
+What does the company sell?
 
----
-
-# Customers
-
-客户是谁
+What underlying capability does it monetize?
 
 ---
 
-# Competitors
+## Supply Chain Position
 
-竞争对手
+Upstream:
 
----
+Downstream:
 
-# Bull Case
+Customers:
 
-为什么涨
+Suppliers:
 
----
-
-# Bear Case
-
-为什么跌
+Competitors:
 
 ---
 
-# KPI
+## Theme Relationships
 
-最重要观察指标
+Primary demand driver:
+
+Source Theme
+↓
+Transmission Mechanism
+↓
+Company Revenue / Orders
+
+Related upstream themes:
+
+Related downstream themes:
+
+Expected lag:
+
+Relationship confidence:
+
+---
+
+## Revenue Exposure
+
+Main revenue sources:
+
+Theme-related revenue exposure:
+
+Exposure quality:
+
+- Direct
+- Indirect
+- Optionality
+- Narrative only
+
+---
+
+## Business Quality
+
+Moat:
+
+Pricing power:
+
+Customer concentration:
+
+Recurring revenue:
+
+Capital intensity:
+
+Execution evidence:
+
+---
+
+## Catalysts
+
+Near-term catalysts:
+
+Medium-term catalysts:
+
+Long-term catalysts:
+
+---
+
+## Bull Case
+
+What must happen?
+
+What is not priced in?
+
+---
+
+## Bear Case
+
+What can break the thesis?
+
+What is already priced in?
+
+---
+
+## KPI
+
+Operational KPIs:
+
+Industry KPIs:
+
+Financial KPIs:
+
+---
+
+## Disconfirming Signals
+
+What evidence would prove the thesis wrong?
+
+---
+
+## Events to Monitor
+
+- Earnings
+- SEC filings
+- Product launches
+- Customer announcements
+- Industry standards
+- Conferences
+
+---
+
+## Sources
+
+Source:
+
+Date:
+
+Key evidence:
+
+Confidence:
+
+---
+
+## Current Conclusion
+
+Portfolio role:
+
+- Core
+- Cyclical
+- High beta
+- Optionality
+- Watchlist
+
+Current thesis:
+
+Open questions:

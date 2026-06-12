@@ -106,21 +106,75 @@ Ethernet Penetration
 
 ## Optical
 
+### Optical Components
+
 Purpose:
 
-解决带宽瓶颈
+Transmit data between GPUs, switches and data centers.
 
 Companies:
 
 CRDO
-LITE
+
 COHR
+
+MRVL
 
 Key Metrics:
 
 Optical Attach Rate
 
-Bandwidth Growth
+800G Shipments
+
+1.6T Shipments
+
+Bandwidth per GPU
+
+CPO Adoption
+
+### Optical Test and Metrology
+
+Purpose:
+
+Verify optical signal quality, production yield and package reliability.
+
+Companies:
+
+KEYS
+
+VIAV
+
+AEHR
+
+FORM
+
+Key Metrics:
+
+1.6T Test Instrument Orders
+
+Wafer-Level Optical Test Adoption
+
+Silicon Photonics Burn-In Orders
+
+Optical Probe Revenue
+
+CPO Qualification Milestones
+
+Relationship:
+
+GPU Cluster Growth
+↓
+Optical Bandwidth Demand
+↓
+800G / 1.6T / CPO
+↓
+Higher Test Intensity
+↓
+Optical Test and Metrology Demand
+
+Detailed research:
+
+[Optical Test and Metrology](./Optical_Test_and_Metrology.md)
 
 ---
 

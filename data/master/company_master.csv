@@ -27,3 +27,6 @@ IONQ,IonQ,Technology,Quantum Computing,Quantum,Quantum Hardware,Quantum Hardware
 MU,Micron,Technology,Memory,AI Infrastructure,Memory,HBM,9
 SNDK,Sandisk,Technology,Memory,AI Infrastructure,Memory,NAND,6
 ORCL,Oracle,Technology,Enterprise Software,AI Infrastructure,NeoCloud,AI Cloud,8
+KEYS,Keysight Technologies,Technology,Electronic Test & Measurement,AI Infrastructure,Optical Test & Metrology,R&D Test & Standards,9
+FORM,FormFactor,Technology,Semiconductor Test Equipment,AI Infrastructure,Optical Test & Metrology,Wafer-Level Test & Probing,8
+AEHR,Aehr Test Systems,Technology,Semiconductor Test Equipment,AI Infrastructure,Optical Test & Metrology,Wafer & Package Burn-In,6
