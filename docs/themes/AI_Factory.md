@@ -41,6 +41,8 @@ AI Factory
 
 ├── Compute
 │
+├── Memory
+│
 ├── Networking
 │
 ├── Optical
@@ -53,6 +55,10 @@ AI Factory
 │
 ├── Energy
 │
+├── Foundry
+│
+├── Equipment
+│
 ├── NeoCloud
 │
 └── Applications
@@ -63,23 +69,42 @@ AI Factory
 
 Purpose:
 
-生成 Token
+Generate tokens and accelerate AI workloads.
 
 Companies:
 
-NVDA
-AMD
-TSM
+- NVDA
+- AMD
 
 Key Metrics:
 
-GPU Shipments
+- GPU shipments
 
-Blackwell Supply
+- Blackwell supply
 
-Training FLOPS
+- training FLOPS
 
-Inference FLOPS
+- inference FLOPS
+
+---
+
+## Memory
+
+Purpose:
+
+Supply high-bandwidth and storage memory required by AI compute systems.
+
+Companies:
+
+- MU
+- SNDK
+
+Key Metrics:
+
+- HBM shipments
+- HBM pricing
+- NAND demand
+- memory content per accelerator
 
 ---
 
@@ -275,6 +300,44 @@ Key Metrics:
 Data Center Power Demand
 
 Power Purchase Agreements
+
+---
+
+## Foundry
+
+Purpose:
+
+Manufacture leading-edge AI chips and advanced semiconductor products.
+
+Companies:
+
+- TSM
+
+Key Metrics:
+
+- leading-edge utilization
+- advanced-node capacity
+- AI revenue mix
+- customer capex
+
+---
+
+## Equipment
+
+Purpose:
+
+Provide the manufacturing equipment required to expand advanced semiconductor capacity.
+
+Companies:
+
+- ASML
+
+Key Metrics:
+
+- EUV bookings
+- advanced-node capex
+- shipment timing
+- customer utilization
 
 ---
 

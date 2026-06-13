@@ -16,6 +16,18 @@ Research Status: Initial framework
 
 ---
 
+## Research Context
+
+Original Thesis Date: 2026-06-12
+
+Data Cutoff: 2026-06-12
+
+Last Verified Date: Not yet verified against primary company disclosures
+
+Thesis Status: Active
+
+---
+
 ## Business
 
 What does the company sell?

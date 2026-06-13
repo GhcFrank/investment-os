@@ -145,6 +145,35 @@ Cloud Pricing Power
 
 ---
 
+## NeoCloud as an Integration Layer
+
+NeoCloud is not only a downstream stage in a linear supply chain.
+
+It is also a capital-allocation and operating layer that integrates:
+
+- Compute
+- Networking
+- Optical
+- Storage
+- Cooling
+- Power
+
+NeoCloud capex can therefore transmit demand to several infrastructure layers at the same time.
+
+The sequence:
+
+GPU
+↓
+Networking
+↓
+Optical
+↓
+NeoCloud
+
+should be treated as a research simplification, not a strict chronological rule.
+
+---
+
 ## Stage 5
 
 Cooling

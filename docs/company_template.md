@@ -16,6 +16,24 @@ Research Status:
 
 ---
 
+## Research Context
+
+Original Thesis Date:
+
+Data Cutoff:
+
+Last Verified Date:
+
+Thesis Status:
+
+- Historical
+- Active
+- Partially Confirmed
+- Weakening
+- Rejected
+
+---
+
 ## Business
 
 What does the company sell?
@@ -86,6 +104,32 @@ Recurring revenue:
 Capital intensity:
 
 Execution evidence:
+
+---
+
+## Capital and Execution
+
+This section is optional.
+
+Use it when capital structure, capacity expansion, project financing or execution milestones are material to the investment thesis.
+
+For asset-light companies, write:
+
+Not a primary thesis driver.
+
+Balance Sheet:
+
+Capex Requirement:
+
+Funding Sources:
+
+Dilution Risk:
+
+Debt and Interest Burden:
+
+Capacity / Production Milestones:
+
+Execution Bottleneck:
 
 ---
 

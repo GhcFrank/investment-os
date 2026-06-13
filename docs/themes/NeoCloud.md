@@ -88,6 +88,24 @@ Revenue Growth
 
 ---
 
+### ORCL
+
+Current Position:
+
+Traditional enterprise-software and cloud platform expanding aggressively into AI infrastructure.
+
+ORCL is not an AI-native NeoCloud in the same sense as NBIS or CRWV. It is included as a comparison because its AI infrastructure expansion competes for similar capital, customers and capacity.
+
+Key Metrics:
+
+- OCI infrastructure growth
+- capex
+- backlog conversion
+- debt and interest burden
+- customer concentration
+
+---
+
 ### APLD
 
 Applied Digital
@@ -187,6 +205,83 @@ Power
 ↓
 
 Energy
+
+---
+
+## Business Model Differences
+
+Companies grouped under NeoCloud can have materially different:
+
+- product depth
+- funding models
+- customer concentration
+- hardware ownership
+- software capabilities
+- inference capabilities
+- balance-sheet risk
+
+Belonging to the same NeoCloud theme does not imply:
+
+- the same financing risk
+- the same customer risk
+- the same margin structure
+- the same long-term business model
+
+---
+
+## Capacity Funnel
+
+NeoCloud capacity should be tracked as a conversion funnel:
+
+Secured Power
+↓
+Under Construction
+↓
+Connected Capacity
+↓
+Equipped Capacity
+↓
+Active Capacity
+↓
+Contracted Capacity
+↓
+Revenue-Generating Capacity
+
+These stages must not be treated as equivalent.
+
+Key questions:
+
+- How quickly does connected capacity become active?
+- How much active capacity is contracted?
+- How much contracted capacity is generating recognized revenue?
+- Which stage requires the largest capital commitment?
+
+---
+
+## Financing and Risk
+
+NeoCloud expansion can be funded through:
+
+- cash
+- operating cash flow
+- debt
+- project finance
+- customer prepayments
+- convertible debt
+- ATM equity issuance
+- strategic partners
+
+Key risks:
+
+- interest burden
+- refinancing
+- equity dilution
+- construction delay
+- power delay
+- customer concentration
+- utilization shortfall
+- GPU obsolescence
+- cloud pricing pressure
 
 ---
 

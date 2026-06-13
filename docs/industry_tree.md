@@ -1,6 +1,7 @@
 AI Infrastructure
 ├── Compute
 │   └── GPU
+├── Memory
 ├── Networking
 ├── Optical
 │   ├── Optical Components
@@ -13,8 +14,12 @@ AI Infrastructure
 │       ├── Optical Coupling
 │       ├── Die Attach
 │       └── CPO Packaging
-├── Memory
+├── Storage
 ├── NeoCloud
+│   ├── AI Compute Infrastructure
+│   ├── AI Cloud Platform
+│   └── Inference & Token Services
+├── Cooling
 ├── Power
 ├── Energy
 ├── Foundry
