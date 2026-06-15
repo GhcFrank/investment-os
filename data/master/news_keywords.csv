@@ -1,0 +1,84 @@
+theme,subtheme,keyword,keyword_type,weight,enabled
+AI Infrastructure,GPU,AI accelerator,strong_phrase,5,true
+AI Infrastructure,GPU,GPU cluster,strong_phrase,5,true
+AI Infrastructure,GPU,rack scale AI,strong_phrase,5,true
+AI Infrastructure,GPU,Blackwell,medium_keyword,3,true
+AI Infrastructure,Memory,high bandwidth memory,strong_phrase,5,true
+AI Infrastructure,Memory,HBM,strong_phrase,5,true
+AI Infrastructure,Memory,HBM3E,medium_keyword,4,true
+AI Infrastructure,Memory,HBM4,medium_keyword,4,true
+AI Infrastructure,Networking,scale up network,strong_phrase,5,true
+AI Infrastructure,Networking,scale out network,strong_phrase,5,true
+AI Infrastructure,Networking,AI fabric,strong_phrase,5,true
+AI Infrastructure,Networking,Ethernet fabric,strong_phrase,4,true
+AI Infrastructure,Networking,InfiniBand,medium_keyword,3,true
+AI Infrastructure,Networking,CXL,medium_keyword,3,true
+AI Infrastructure,Networking,PCIe 6.0,medium_keyword,3,true
+AI Infrastructure,Optical,co packaged optics,strong_phrase,6,true
+AI Infrastructure,Optical,CPO,medium_keyword,3,true
+AI Infrastructure,Optical,silicon photonics,strong_phrase,5,true
+AI Infrastructure,Optical,optical interconnect,strong_phrase,5,true
+AI Infrastructure,Optical,800G,medium_keyword,3,true
+AI Infrastructure,Optical,1.6T,medium_keyword,4,true
+AI Infrastructure,Optical,3.2T,medium_keyword,4,true
+AI Infrastructure,Optical Test & Metrology,wafer level optical test,strong_phrase,6,true
+AI Infrastructure,Optical Test & Metrology,bit error rate tester,strong_phrase,5,true
+AI Infrastructure,Optical Test & Metrology,optical metrology,strong_phrase,5,true
+AI Infrastructure,Optical Test & Metrology,photonics packaging,strong_phrase,5,true
+AI Infrastructure,NeoCloud,GPU cloud,strong_phrase,5,true
+AI Infrastructure,NeoCloud,AI cloud infrastructure,strong_phrase,5,true
+AI Infrastructure,NeoCloud,AI native cloud,strong_phrase,5,true
+AI Infrastructure,Cooling,liquid cooling,strong_phrase,5,true
+AI Infrastructure,Cooling,direct liquid cooling,strong_phrase,5,true
+AI Infrastructure,Cooling,immersion cooling,strong_phrase,5,true
+AI Infrastructure,Power,data center power,strong_phrase,5,true
+AI Infrastructure,Power,power delivery network,strong_phrase,4,true
+AI Infrastructure,Power,megawatt rack,strong_phrase,5,true
+AI Infrastructure,Power,power density,medium_keyword,3,true
+AI Infrastructure,Foundry,advanced node,strong_phrase,4,true
+AI Infrastructure,Foundry,leading edge node,strong_phrase,4,true
+AI Infrastructure,Equipment,EUV,medium_keyword,3,true
+AI Infrastructure,Equipment,high NA EUV,strong_phrase,5,true
+AI Infrastructure,Equipment,advanced packaging,strong_phrase,5,true
+AI Infrastructure,Equipment,chiplet,medium_keyword,3,true
+AI Infrastructure,Equipment,hybrid bonding,strong_phrase,5,true
+AI Infrastructure,Equipment,backside power delivery,strong_phrase,5,true
+AI Infrastructure,Equipment,wafer inspection,strong_phrase,5,true
+AI Infrastructure,Equipment,process control,strong_phrase,4,true
+AI Infrastructure,Equipment,semiconductor metrology,strong_phrase,5,true
+AI Infrastructure,Equipment,yield management,strong_phrase,4,true
+AI Infrastructure,Storage,AI storage,strong_phrase,5,true
+AI Infrastructure,Storage,NVMe,medium_keyword,3,true
+AI Infrastructure,Storage,storage fabric,strong_phrase,4,true
+AI Infrastructure,AI-RAN,AI RAN,strong_phrase,5,true
+Software,Developer Tools,electronic design automation,strong_phrase,4,true
+Software,Developer Tools,EDA,medium_keyword,2,true
+Software,Developer Tools,design verification,strong_phrase,4,true
+Quantum,Quantum Hardware,quantum processor,strong_phrase,5,true
+Quantum,Quantum Hardware,cryogenic control,strong_phrase,4,true
+Emerging Research,AI Hardware,AI accelerator,scope_anchor,0,true
+Emerging Research,AI Hardware,data center,scope_anchor,0,true
+Emerging Research,AI Hardware,hyperscale,scope_anchor,0,true
+Emerging Research,AI Hardware,advanced packaging,scope_anchor,0,true
+Emerging Research,AI Hardware,silicon photonics,scope_anchor,0,true
+Emerging Research,AI Hardware,optical interconnect,scope_anchor,0,true
+Emerging Research,AI Hardware,chiplet,scope_anchor,0,true
+Emerging Research,AI Hardware,HBM,scope_anchor,0,true
+Emerging Research,AI Hardware,wafer level,scope_anchor,0,true
+Emerging Research,AI Hardware,AI server,scope_anchor,0,true
+Emerging Research,Bottleneck,bottleneck,bottleneck,0,true
+Emerging Research,Bottleneck,capacity,bottleneck,0,true
+Emerging Research,Bottleneck,yield,bottleneck,0,true
+Emerging Research,Bottleneck,reliability,bottleneck,0,true
+Emerging Research,Bottleneck,bandwidth,bottleneck,0,true
+Emerging Research,Bottleneck,latency,bottleneck,0,true
+Emerging Research,Bottleneck,thermal,bottleneck,0,true
+Emerging Research,Bottleneck,cooling,bottleneck,0,true
+Emerging Research,Bottleneck,interconnect,bottleneck,0,true
+Emerging Research,Bottleneck,packaging,bottleneck,0,true
+Emerging Research,Bottleneck,inspection,bottleneck,0,true
+Emerging Research,Bottleneck,metrology,bottleneck,0,true
+Emerging Research,Bottleneck,shortage,bottleneck,0,true
+Emerging Research,Bottleneck,supply constraint,bottleneck,0,true
+Emerging Research,Bottleneck,power density,bottleneck,0,true
+Emerging Research,Bottleneck,signal integrity,bottleneck,0,true

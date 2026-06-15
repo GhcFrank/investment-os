@@ -1,0 +1,34 @@
+ticker,alias,alias_type,priority,allow_standalone,enabled
+NVDA,NVIDIA,company_name,high,true,true
+NVDA,Blackwell,product,medium,true,true
+AVGO,Broadcom,company_name,high,true,true
+AVGO,Tomahawk,product,medium,true,true
+ANET,Arista Networks,company_name,high,true,true
+CRDO,Credo,company_name,high,true,true
+CRDO,HiWire,product,medium,true,true
+TSM,TSMC,company_name,high,true,true
+TSM,Taiwan Semiconductor Manufacturing,company_name,high,true,true
+ASML,ASML,company_name,high,true,true
+VRT,Vertiv,company_name,high,true,true
+GEV,GE Vernova,company_name,high,true,true
+CEG,Constellation Energy,company_name,high,true,true
+NBIS,Nebius,company_name,high,true,true
+CRWV,CoreWeave,company_name,high,true,true
+MRVL,Marvell,company_name,high,true,true
+COHR,Coherent,company_name,high,true,true
+NOK,Nokia,company_name,high,true,true
+DDOG,Datadog,company_name,high,true,true
+RDW,Redwire,company_name,high,true,true
+PL,Planet Labs,company_name,high,true,true
+SMR,NuScale Power,company_name,high,true,true
+OKLO,Oklo,company_name,high,true,true
+RGTI,Rigetti Computing,company_name,high,true,true
+QBTS,D-Wave Quantum,company_name,high,true,true
+IONQ,IonQ,company_name,high,true,true
+MU,Micron,company_name,high,true,true
+SNDK,SanDisk,company_name,high,true,true
+ORCL,Oracle,company_name,high,true,true
+ORCL,OCI,brand,medium,true,true
+KEYS,Keysight,company_name,high,true,true
+FORM,FormFactor,company_name,high,true,true
+AEHR,Aehr Test Systems,company_name,high,true,true
