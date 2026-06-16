@@ -90,6 +90,48 @@ class NewsFilterTests(unittest.TestCase):
         self.assertNotIn("MU", false_match["matched_tickers"])
         self.assertIn("MU", true_match["matched_tickers"])
 
+    def test_micron_technology_matches_mu(self):
+        result = self.classify("Micron Technology Expands HBM4 Production")
+
+        self.assertIn("MU", result["matched_tickers"])
+        self.assertEqual(result["filter_status"], "keep")
+
+    def test_micron_hbm_nearby_matches_mu(self):
+        result = self.classify("Micron Plans New DRAM Capacity")
+
+        self.assertIn("MU", result["matched_tickers"])
+        self.assertEqual(result["filter_status"], "keep")
+
+    def test_two_micron_laser_does_not_match_mu(self):
+        result = self.classify(
+            "Boosting EUV Conversion Efficiency With 2-Micron Dual-Beam Laser Irradiation"
+        )
+
+        self.assertNotIn("MU", result["matched_tickers"])
+
+    def test_decimal_micron_lithography_does_not_match_mu(self):
+        result = self.classify("Nikon Demonstrates 1.5 Micron L/S Lithography")
+
+        self.assertNotIn("MU", result["matched_tickers"])
+
+    def test_micron_scale_does_not_match_mu(self):
+        result = self.classify("Micron-Scale Structures Improve Yield")
+
+        self.assertNotIn("MU", result["matched_tickers"])
+
+    def test_micron_ls_does_not_match_mu(self):
+        result = self.classify("New Overlay Method For Micron L/S Process Control")
+
+        self.assertNotIn("MU", result["matched_tickers"])
+
+    def test_distant_hbm_does_not_turn_unit_micron_into_company(self):
+        result = self.classify(
+            "Lithography And Memory Market Update",
+            "Nikon demonstrated 1.5 micron lithography. HBM prices rose elsewhere in the market.",
+        )
+
+        self.assertNotIn("MU", result["matched_tickers"])
+
     def test_coherent_requires_optical_context(self):
         false_match = self.classify(
             "A Coherent Approach To Verification",
@@ -146,11 +188,37 @@ class NewsFilterTests(unittest.TestCase):
         self.assertIn("data movement", result["matched_keywords"])
         self.assertIn(result["filter_status"], {"keep", "review"})
 
-    def test_content_classification(self):
+    def test_week_in_review_is_roundup(self):
         self.assertEqual(
             classify_content("Week In Review: Manufacturing", ["News"], []),
             ("roundup", "B"),
         )
+
+    def test_blog_review_is_roundup(self):
+        self.assertEqual(
+            classify_content("Blog Review: May 20", ["Top Stories"], []),
+            ("roundup", "B"),
+        )
+
+    def test_technical_paper_roundup_is_roundup(self):
+        self.assertEqual(
+            classify_content("Chip Industry Technical Paper Roundup", ["Technical Papers"], []),
+            ("roundup", "B"),
+        )
+
+    def test_research_bits_is_roundup(self):
+        self.assertEqual(
+            classify_content("Research Bits: Jun. 2", ["Top Stories"], []),
+            ("roundup", "B"),
+        )
+
+    def test_regular_top_story_is_editorial(self):
+        self.assertEqual(
+            classify_content("Capacity Update", ["Top Stories"], []),
+            ("editorial", "A"),
+        )
+
+    def test_content_taxonomy_classification(self):
         self.assertEqual(
             classify_content("New Paper", ["Technical Papers"], []),
             ("technical_paper", "B"),
@@ -158,10 +226,6 @@ class NewsFilterTests(unittest.TestCase):
         self.assertEqual(
             classify_content("Vendor Guide", ["White Papers"], []),
             ("whitepaper", "C"),
-        )
-        self.assertEqual(
-            classify_content("Capacity Update", ["Top Stories"], []),
-            ("editorial", "A"),
         )
 
 

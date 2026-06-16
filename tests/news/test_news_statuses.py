@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from contextlib import ExitStack
 from pathlib import Path
 from unittest.mock import patch
 
@@ -7,6 +8,7 @@ import pandas as pd
 
 from news import fetch_semiengineering_news as fetch
 from news.news_filter import (
+    FILTER_RULE_VERSION,
     MANUAL_DECISION_COLUMNS,
     NEWS_COLUMNS,
     REJECT_COLUMNS,
@@ -80,6 +82,7 @@ class NewsStatusTests(unittest.TestCase):
             self.assertNotIn("semiengineering_3", set(reject_df["news_id"]))
             first_seen = keep_df.set_index("news_id").loc["semiengineering_2", "first_seen_at"]
             self.assertEqual(first_seen, "2026-01-02T00:00:00Z")
+            self.assertEqual(set(keep_df["filter_rule_version"]), {FILTER_RULE_VERSION})
 
     def test_reconcile_preserves_review_manual_fields(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -175,4 +178,46 @@ class ManualDecisionTests(unittest.TestCase):
             self.assertEqual(manual.loc[0, "manual_notes"], "important capacity signal")
             self.assertEqual(history.loc[0, "filter_status"], "manual_keep")
             self.assertEqual(history.loc[0, "manual_override"], "True")
+            self.assertTrue(review.empty)
+
+    def test_apply_review_updates_history_but_not_current_snapshot(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            paths = {
+                "CURRENT_NEWS_FILE": tmp_path / "current.csv",
+                "HISTORY_FILE": tmp_path / "history.csv",
+                "REVIEW_FILE": tmp_path / "review.csv",
+                "REJECT_FILE": tmp_path / "reject.csv",
+                "FETCH_LOG_FILE": tmp_path / "fetch_log.csv",
+                "MANUAL_DECISIONS_FILE": tmp_path / "manual.csv",
+            }
+            history_rows = [
+                news_row("semiengineering_A", "keep", "2026-06-01T00:00:00Z", "2026-06-01T00:00:00Z"),
+                news_row("semiengineering_B", "keep", "2026-06-01T00:00:00Z", "2026-06-01T00:00:00Z"),
+                news_row("semiengineering_C", "keep", "2026-06-01T00:00:00Z", "2026-06-01T00:00:00Z"),
+            ]
+            current_rows = [news_row("semiengineering_C", "keep", "2026-06-01T00:00:00Z", "2026-06-01T00:00:00Z")]
+            review_row = {
+                **news_row("semiengineering_D", "review", "2026-06-02T00:00:00Z", "2026-06-02T00:00:00Z"),
+                "manual_decision": "keep",
+                "manual_notes": "promote",
+                "reviewed_at": "2026-06-03T00:00:00Z",
+            }
+            atomic_write_csv(pd.DataFrame(history_rows), paths["HISTORY_FILE"], NEWS_COLUMNS)
+            atomic_write_csv(pd.DataFrame(current_rows), paths["CURRENT_NEWS_FILE"], NEWS_COLUMNS)
+            atomic_write_csv(pd.DataFrame([review_row]), paths["REVIEW_FILE"], REVIEW_COLUMNS)
+
+            with ExitStack() as stack:
+                for name, path in paths.items():
+                    stack.enter_context(patch.object(fetch, name, path))
+
+                exit_code = fetch._apply_review_decisions()
+
+            self.assertEqual(exit_code, 0)
+            history = read_csv_safe(paths["HISTORY_FILE"], NEWS_COLUMNS)
+            current = read_csv_safe(paths["CURRENT_NEWS_FILE"], NEWS_COLUMNS)
+            review = read_csv_safe(paths["REVIEW_FILE"], REVIEW_COLUMNS)
+
+            self.assertEqual(set(history["news_id"]), {"semiengineering_A", "semiengineering_B", "semiengineering_C", "semiengineering_D"})
+            self.assertEqual(set(current["news_id"]), {"semiengineering_C"})
             self.assertTrue(review.empty)

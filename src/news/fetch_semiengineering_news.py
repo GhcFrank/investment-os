@@ -89,12 +89,14 @@ POST_FIELDS = (
     "title,excerpt,author,categories,tags"
 )
 
+DEFAULT_LOOKBACK_DAYS = 30
 
-def parse_args() -> argparse.Namespace:
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Backfill Semiconductor Engineering news."
     )
-    parser.add_argument("--lookback-days", type=int, default=30)
+    parser.add_argument("--lookback-days", type=int, default=DEFAULT_LOOKBACK_DAYS)
     parser.add_argument("--as-of", default=None)
     parser.add_argument("--save-raw", dest="save_raw", action="store_true")
     parser.add_argument("--no-save-raw", dest="save_raw", action="store_false")
@@ -102,8 +104,45 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--reprocess-raw", default=None)
     parser.add_argument("--apply-review-decisions", action="store_true")
+    args = parser.parse_args(argv)
+    validate_cli_args(args, parser)
 
-    return parser.parse_args()
+    return args
+
+
+def validate_cli_args(
+    args: argparse.Namespace,
+    parser: argparse.ArgumentParser | None = None,
+) -> None:
+    def fail(message: str) -> None:
+        if parser is not None:
+            parser.error(message)
+
+        raise ValueError(message)
+
+    lookback_days = getattr(args, "lookback_days", DEFAULT_LOOKBACK_DAYS)
+    apply_review = bool(getattr(args, "apply_review_decisions", False))
+    reprocess_raw = bool(getattr(args, "reprocess_raw", None))
+    dry_run = bool(getattr(args, "dry_run", False))
+    as_of = getattr(args, "as_of", None)
+
+    if apply_review and dry_run:
+        fail("--apply-review-decisions cannot be combined with --dry-run")
+
+    if apply_review and reprocess_raw:
+        fail("--apply-review-decisions cannot be combined with --reprocess-raw")
+
+    if apply_review and as_of:
+        fail("--apply-review-decisions cannot be combined with --as-of")
+
+    if apply_review and lookback_days != DEFAULT_LOOKBACK_DAYS:
+        fail("--apply-review-decisions cannot be combined with --lookback-days")
+
+    if reprocess_raw and as_of:
+        fail("--reprocess-raw cannot be combined with --as-of")
+
+    if reprocess_raw and lookback_days != DEFAULT_LOOKBACK_DAYS:
+        fail("--reprocess-raw cannot be combined with --lookback-days")
 
 
 def compact_timestamp(value: str) -> str:
@@ -651,13 +690,13 @@ def _apply_review_decisions() -> int:
     rows["manual_override"] = "True"
     rows["last_seen_at"] = applied_at
     rows = apply_manual_overrides(rows, updated_decisions)
-    keep, review_df, reject = reconcile_news_statuses(
+    _, review_df, reject = reconcile_news_statuses(
         rows=rows,
         history_path=HISTORY_FILE,
         review_path=REVIEW_FILE,
         reject_path=REJECT_FILE,
     )
-    atomic_write_csv(keep, CURRENT_NEWS_FILE, NEWS_COLUMNS)
+    keep, _, _ = split_rows(rows)
     append_fetch_log(
         {
             "run_id": run_id,

@@ -11,6 +11,45 @@ from news import fetch_semiengineering_news as fetch
 from news.news_utils import repo_relative_path
 
 
+class CliModeTests(unittest.TestCase):
+    def test_apply_review_and_dry_run_are_mutually_exclusive(self):
+        with self.assertRaises(SystemExit) as error:
+            fetch.parse_args(["--apply-review-decisions", "--dry-run"])
+
+        self.assertEqual(error.exception.code, 2)
+
+    def test_apply_review_and_reprocess_are_mutually_exclusive(self):
+        with self.assertRaises(SystemExit) as error:
+            fetch.parse_args(
+                [
+                    "--apply-review-decisions",
+                    "--reprocess-raw",
+                    "data/news/raw/semiengineering/sample.json",
+                ]
+            )
+
+        self.assertEqual(error.exception.code, 2)
+
+    def test_reprocess_and_dry_run_are_allowed(self):
+        args = fetch.parse_args(
+            [
+                "--reprocess-raw",
+                "data/news/raw/semiengineering/sample.json",
+                "--dry-run",
+            ]
+        )
+
+        self.assertTrue(args.dry_run)
+        self.assertEqual(args.reprocess_raw, "data/news/raw/semiengineering/sample.json")
+
+    def test_api_fetch_and_dry_run_are_allowed(self):
+        args = fetch.parse_args(["--dry-run"])
+
+        self.assertTrue(args.dry_run)
+        self.assertIsNone(args.reprocess_raw)
+        self.assertFalse(args.apply_review_decisions)
+
+
 class FetchTaxonomyTests(unittest.TestCase):
     def test_collect_post_term_ids(self):
         category_ids, tag_ids = fetch.collect_post_term_ids(

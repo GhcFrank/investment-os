@@ -4,6 +4,7 @@ Rule-based News Discovery V1 filtering.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -28,7 +29,8 @@ from news.news_utils import (
 BASE_DIR = Path(__file__).resolve().parents[2]
 MASTER_DIR = BASE_DIR / "data" / "master"
 
-FILTER_RULE_VERSION = "news_filter_v1"
+FILTER_RULE_VERSION = "news_filter_v1_1"
+ALIAS_CONTEXT_WINDOW_TOKENS = 12
 
 NEWS_COLUMNS = [
     "news_id",
@@ -295,18 +297,78 @@ def _split_context(value: object) -> list[str]:
     ]
 
 
+def _alias_pattern(alias: str) -> re.Pattern[str]:
+    words = normalize_match_text(alias).split()
+    separator = r"[\W_]+"
+    pattern = separator.join(re.escape(word) for word in words)
+
+    return re.compile(rf"(?<![A-Za-z0-9]){pattern}(?![A-Za-z0-9])", re.IGNORECASE)
+
+
+def _token_spans(original_text: str) -> list[tuple[str, int, int]]:
+    return [
+        (match.group(0), match.start(), match.end())
+        for match in re.finditer(r"[A-Za-z0-9]+", original_text)
+    ]
+
+
+def _nearby_token_text(
+    original_text: str,
+    match_start: int,
+    match_end: int,
+    window_tokens: int = ALIAS_CONTEXT_WINDOW_TOKENS,
+) -> str:
+    tokens = _token_spans(original_text)
+    overlapping = [
+        index
+        for index, (_, start, end) in enumerate(tokens)
+        if start < match_end and end > match_start
+    ]
+
+    if not overlapping:
+        return original_text[max(0, match_start - 120) : match_end + 120]
+
+    start_index = max(0, overlapping[0] - window_tokens)
+    end_index = min(len(tokens), overlapping[-1] + window_tokens + 1)
+
+    return " ".join(token for token, _, _ in tokens[start_index:end_index])
+
+
+def is_micron_measurement_context(
+    original_text: str,
+    match_start: int,
+    match_end: int,
+) -> bool:
+    """
+    Identify micron as a length-unit reference near a specific alias hit.
+    """
+
+    nearby = original_text[max(0, match_start - 80) : match_end + 80].lower()
+    measurement_patterns = [
+        r"\b\d+(?:\.\d+)?\s*[- ]?microns?\b",
+        r"\bmicrons?[- ]scale\b",
+        r"\bmicrons?[- ]level\b",
+        r"\bmicrons?\s+l\s*/?\s*s\b",
+        r"\bmicrons?\s+(?:line|feature|process|node|geometry|pitch)\b",
+    ]
+
+    return any(re.search(pattern, nearby) for pattern in measurement_patterns)
+
+
 def alias_matches(
     alias_row: pd.Series,
-    normalized_text: str,
+    original_text: str,
 ) -> bool:
     """
     Return whether one alias row matches normalized text and context rules.
     """
 
+    text = clean_html_text(original_text)
+    normalized_text = normalize_match_text(text)
     normalized_alias = str(alias_row.get("normalized_alias", "") or "")
-
-    if not contains_normalized_phrase(normalized_text, normalized_alias):
-        return False
+    alias = str(alias_row.get("alias", "") or "")
+    ticker = str(alias_row.get("ticker", "") or "").strip().upper()
+    matches = list(_alias_pattern(alias).finditer(text))
 
     for excluded in _split_context(alias_row.get("excluded_context", "")):
         if contains_normalized_phrase(normalized_text, excluded):
@@ -314,16 +376,31 @@ def alias_matches(
 
     required_context = _split_context(alias_row.get("required_context", ""))
 
-    if required_context and not any(
-        contains_normalized_phrase(normalized_text, context)
-        for context in required_context
-    ):
-        return False
+    for match in matches:
+        if (
+            ticker == "MU"
+            and normalized_alias == "micron"
+            and is_micron_measurement_context(text, match.start(), match.end())
+        ):
+            continue
 
-    if not required_context and not csv_bool(alias_row.get("allow_standalone", True)):
-        return False
+        if required_context:
+            nearby_text = normalize_match_text(
+                _nearby_token_text(text, match.start(), match.end())
+            )
 
-    return True
+            if not any(
+                contains_normalized_phrase(nearby_text, context)
+                for context in required_context
+            ):
+                continue
+
+        elif not csv_bool(alias_row.get("allow_standalone", True)):
+            continue
+
+        return True
+
+    return False
 
 
 def _field_match_score(
@@ -365,8 +442,6 @@ def _match_aliases(
     Match manually approved aliases, taking one max score per ticker per field.
     """
 
-    normalized_title = normalize_match_text(title)
-    normalized_excerpt = normalize_match_text(excerpt)
     title_scores: dict[str, int] = {}
     excerpt_scores: dict[str, int] = {}
     title_aliases: dict[str, str] = {}
@@ -386,14 +461,14 @@ def _match_aliases(
             ALIAS_SCORE["low"],
         )
 
-        if alias_matches(row, normalized_title):
+        if alias_matches(row, title):
             score = scoring["title"]
 
             if score > title_scores.get(ticker, 0):
                 title_scores[ticker] = score
                 title_aliases[ticker] = alias
 
-        if alias_matches(row, normalized_excerpt):
+        if alias_matches(row, excerpt):
             score = scoring["excerpt"]
 
             if score > excerpt_scores.get(ticker, 0):
@@ -558,8 +633,21 @@ def classify_content(
 
     title_text = normalize_match_text(title)
     taxonomy_text = normalize_match_text(" ".join(category_names + tag_names))
+    roundup_title_patterns = [
+        "week in review",
+        "blog review",
+        "technical paper roundup",
+        "paper roundup",
+        "research roundup",
+        "research bits",
+        "industry roundup",
+        "news roundup",
+    ]
 
-    if contains_normalized_phrase(title_text, "week in review"):
+    if any(
+        contains_normalized_phrase(title_text, pattern)
+        for pattern in roundup_title_patterns
+    ):
         return "roundup", "B"
 
     if contains_normalized_phrase(taxonomy_text, "technical papers"):
@@ -952,6 +1040,10 @@ def reconcile_news_statuses(
     keep_df = keep_df.reindex(columns=NEWS_COLUMNS)
     review_df = review_df.reindex(columns=REVIEW_COLUMNS)
     reject_df = reject_df.reindex(columns=REJECT_COLUMNS)
+
+    for frame in (keep_df, review_df, reject_df):
+        if not frame.empty and "filter_rule_version" in frame.columns:
+            frame["filter_rule_version"] = FILTER_RULE_VERSION
 
     assert_no_cross_status_overlap(keep_df, review_df, reject_df)
     atomic_write_csv(keep_df, history_path, NEWS_COLUMNS)
