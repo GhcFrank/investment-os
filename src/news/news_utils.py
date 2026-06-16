@@ -9,6 +9,7 @@ import os
 import re
 import time
 from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
@@ -112,38 +113,68 @@ def normalize_wp_gmt_datetime(value: object) -> str:
     return format_utc(datetime.fromisoformat(text).replace(tzinfo=UTC))
 
 
+def _retry_after_seconds(value: str | None) -> float | None:
+    """
+    Parse Retry-After as seconds or HTTP-date.
+    """
+
+    if not value:
+        return None
+
+    stripped = value.strip()
+
+    try:
+        seconds = float(stripped)
+        return max(seconds, 0)
+    except ValueError:
+        pass
+
+    try:
+        retry_time = parsedate_to_datetime(stripped)
+
+        if retry_time.tzinfo is None:
+            retry_time = retry_time.replace(tzinfo=UTC)
+
+        delta = retry_time.astimezone(UTC) - datetime.now(UTC)
+        return max(delta.total_seconds(), 0)
+    except (TypeError, ValueError, IndexError, OverflowError):
+        return None
+
+
 def get_json(
     url: str,
     params: dict[str, object] | None = None,
 ) -> requests.Response:
     """
-    Fetch JSON over HTTP with retries and status validation.
+    Fetch JSON over HTTP with targeted retries and status validation.
     """
 
-    last_error: Exception | None = None
     retry_delays = [1, 2, 4]
 
     for attempt_number in range(len(retry_delays) + 1):
         try:
             response = SESSION.get(url, params=params, timeout=30)
 
-            if response.status_code in REQUEST_RETRY_STATUSES:
-                response.raise_for_status()
-
-            response.raise_for_status()
-            return response
-
-        except requests.RequestException as error:
-            last_error = error
-
+        except (requests.ConnectionError, requests.Timeout):
             if attempt_number < len(retry_delays):
                 time.sleep(retry_delays[attempt_number])
                 continue
-
             raise
 
-    if last_error is not None:
-        raise last_error
+        if response.status_code in REQUEST_RETRY_STATUSES:
+            if attempt_number < len(retry_delays):
+                retry_after = _retry_after_seconds(response.headers.get("Retry-After"))
+                time.sleep(
+                    retry_after
+                    if retry_after is not None
+                    else retry_delays[attempt_number]
+                )
+                continue
+
+            response.raise_for_status()
+
+        response.raise_for_status()
+        return response
 
     raise RuntimeError(f"HTTP request failed without an error: {url}")
 
@@ -183,13 +214,13 @@ def normalize_match_text(value: str) -> str:
     return text.strip()
 
 
-def contains_phrase(text: str, keyword: str) -> bool:
+def contains_normalized_phrase(
+    normalized_text: str,
+    normalized_keyword: str,
+) -> bool:
     """
-    Match a normalized keyword with complete alphanumeric boundaries.
+    Match a normalized keyword inside normalized text with full boundaries.
     """
-
-    normalized_text = normalize_match_text(text)
-    normalized_keyword = normalize_match_text(keyword)
 
     if not normalized_text or not normalized_keyword:
         return False
@@ -197,6 +228,17 @@ def contains_phrase(text: str, keyword: str) -> bool:
     pattern = rf"(?<![a-z0-9]){re.escape(normalized_keyword)}(?![a-z0-9])"
 
     return re.search(pattern, normalized_text) is not None
+
+
+def contains_phrase(text: str, keyword: str) -> bool:
+    """
+    Match a normalized keyword with complete alphanumeric boundaries.
+    """
+
+    return contains_normalized_phrase(
+        normalize_match_text(text),
+        normalize_match_text(keyword),
+    )
 
 
 def normalize_url(url: str) -> str:
@@ -223,6 +265,18 @@ def normalize_url(url: str) -> str:
             parts.fragment,
         )
     )
+
+
+def repo_relative_path(path: Path, base_dir: Path) -> str:
+    """
+    Convert a path to a repository-relative path when possible.
+    """
+
+    try:
+        return str(path.resolve().relative_to(base_dir.resolve()))
+    except ValueError:
+        print(f"Warning: path is outside repository: {path}")
+        return str(path)
 
 
 def read_csv_safe(path: Path, columns: list[str]) -> pd.DataFrame:

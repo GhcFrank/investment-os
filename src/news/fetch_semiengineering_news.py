@@ -15,22 +15,26 @@ from typing import Any
 import pandas as pd
 
 from news.news_filter import (
+    MANUAL_DECISION_COLUMNS,
     NEWS_COLUMNS,
     REJECT_COLUMNS,
     REVIEW_COLUMNS,
+    apply_manual_overrides,
     load_filter_config,
+    reconcile_news_statuses,
     rows_from_posts,
-    upsert_keep_history,
-    upsert_rejected_log,
-    upsert_review_queue,
+    split_rows,
+    upsert_manual_decisions,
 )
 from news.news_utils import (
     atomic_write_csv,
+    clean_html_text,
     format_utc,
     get_json,
     now_utc_iso,
     parse_utc_datetime,
     read_csv_safe,
+    repo_relative_path,
 )
 
 
@@ -50,6 +54,7 @@ HISTORY_FILE = NEWS_DIR / "semiengineering_news_history.csv"
 REVIEW_FILE = NEWS_DIR / "news_review_queue.csv"
 REJECT_FILE = NEWS_DIR / "news_rejected_log.csv"
 FETCH_LOG_FILE = NEWS_DIR / "news_fetch_log.csv"
+MANUAL_DECISIONS_FILE = NEWS_DIR / "news_manual_decisions.csv"
 CATEGORIES_FILE = REFERENCE_DIR / "semiengineering_categories.csv"
 TAGS_FILE = REFERENCE_DIR / "semiengineering_tags.csv"
 
@@ -81,7 +86,7 @@ FETCH_LOG_COLUMNS = [
 
 POST_FIELDS = (
     "id,date,date_gmt,modified,modified_gmt,slug,link,"
-    "title,excerpt,content,author,categories,tags"
+    "title,excerpt,author,categories,tags"
 )
 
 
@@ -96,6 +101,7 @@ def parse_args() -> argparse.Namespace:
     parser.set_defaults(save_raw=True)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--reprocess-raw", default=None)
+    parser.add_argument("--apply-review-decisions", action="store_true")
 
     return parser.parse_args()
 
@@ -157,31 +163,71 @@ def fetch_paginated(
     return items, pages_requested, total_pages, total_items
 
 
-def fetch_terms(endpoint: str) -> tuple[list[dict[str, Any]], int]:
+def collect_post_term_ids(
+    posts: list[dict[str, Any]],
+) -> tuple[set[int], set[int]]:
     """
-    Fetch category or tag reference terms.
+    Collect category and tag IDs actually used by the fetched posts.
     """
 
-    terms, pages_requested, _, _ = fetch_paginated(
-        endpoint,
-        {
-            "per_page": 100,
-            "orderby": "name",
-            "order": "asc",
-            "_fields": "id,name,slug,count",
-        },
-        label=endpoint.rsplit("/", 1)[-1],
-    )
+    category_ids: set[int] = set()
+    tag_ids: set[int] = set()
 
-    return terms, pages_requested
+    for post in posts:
+        for value in post.get("categories", []) or []:
+            try:
+                category_ids.add(int(value))
+            except (TypeError, ValueError):
+                continue
+
+        for value in post.get("tags", []) or []:
+            try:
+                tag_ids.add(int(value))
+            except (TypeError, ValueError):
+                continue
+
+    return category_ids, tag_ids
+
+
+def fetch_terms_by_ids(
+    endpoint: str,
+    term_ids: set[int],
+    batch_size: int = 100,
+) -> tuple[list[dict[str, Any]], int]:
+    """
+    Fetch taxonomy terms by ID batches.
+    """
+
+    if not term_ids:
+        return [], 0
+
+    sorted_ids = sorted(term_ids)
+    all_terms: list[dict[str, Any]] = []
+    pages_requested = 0
+
+    for start in range(0, len(sorted_ids), batch_size):
+        batch = sorted_ids[start : start + batch_size]
+        terms, batch_pages, _, _ = fetch_paginated(
+            endpoint,
+            {
+                "include": ",".join(str(term_id) for term_id in batch),
+                "per_page": 100,
+                "_fields": "id,name,slug,count",
+            },
+            label=f"{endpoint.rsplit('/', 1)[-1]} include {start + 1}-{start + len(batch)}",
+        )
+        pages_requested += batch_pages
+        all_terms.extend(terms)
+
+    return all_terms, pages_requested
 
 
 def term_rows(terms: list[dict[str, Any]], updated_at: str) -> pd.DataFrame:
     rows = [
         {
             "term_id": str(term.get("id", "") or ""),
-            "name": str(term.get("name", "") or ""),
-            "slug": str(term.get("slug", "") or ""),
+            "name": clean_html_text(term.get("name", "")),
+            "slug": clean_html_text(term.get("slug", "")),
             "count": str(term.get("count", "") or ""),
             "updated_at": updated_at,
         }
@@ -191,39 +237,83 @@ def term_rows(terms: list[dict[str, Any]], updated_at: str) -> pd.DataFrame:
     return pd.DataFrame(rows, columns=TERM_COLUMNS)
 
 
-def build_term_map(terms: list[dict[str, Any]]) -> dict[int, str]:
-    term_map: dict[int, str] = {}
+def upsert_term_cache(
+    existing: pd.DataFrame,
+    new_terms: pd.DataFrame,
+) -> pd.DataFrame:
+    """
+    Merge newly fetched taxonomy terms into the local cache.
+    """
 
-    for term in terms:
-        try:
-            term_id = int(term.get("id"))
-        except (TypeError, ValueError):
-            continue
+    combined = pd.concat(
+        [
+            existing.reindex(columns=TERM_COLUMNS),
+            new_terms.reindex(columns=TERM_COLUMNS),
+        ],
+        ignore_index=True,
+    )
 
-        name = str(term.get("name", "") or "").strip()
+    if combined.empty:
+        return pd.DataFrame(columns=TERM_COLUMNS)
 
-        if name:
-            term_map[term_id] = name
+    combined["term_id"] = combined["term_id"].fillna("").astype(str)
+    combined = combined[combined["term_id"] != ""].copy()
+    combined = combined.drop_duplicates(subset=["term_id"], keep="last")
+    combined["_term_id_num"] = pd.to_numeric(
+        combined["term_id"],
+        errors="coerce",
+    )
+    combined = combined.sort_values(
+        by=["_term_id_num", "term_id"],
+        na_position="last",
+    ).drop(columns=["_term_id_num"])
 
-    return term_map
+    return combined.reindex(columns=TERM_COLUMNS)
 
 
-def load_reference_map(path: Path) -> dict[int, str]:
-    df = read_csv_safe(path, TERM_COLUMNS)
+def build_term_map(terms: pd.DataFrame | list[dict[str, Any]]) -> dict[int, str]:
+    """
+    Build an ID-to-name map from term rows.
+    """
+
+    if isinstance(terms, list):
+        df = term_rows(terms, now_utc_iso())
+    else:
+        df = terms
+
     term_map: dict[int, str] = {}
 
     for _, row in df.iterrows():
         try:
             term_id = int(row.get("term_id", ""))
         except (TypeError, ValueError):
-            continue
+            try:
+                term_id = int(row.get("id", ""))
+            except (TypeError, ValueError):
+                continue
 
-        name = str(row.get("name", "") or "").strip()
+        name = clean_html_text(row.get("name", ""))
 
         if name:
             term_map[term_id] = name
 
     return term_map
+
+
+def load_reference_cache(path: Path) -> pd.DataFrame:
+    """
+    Load taxonomy reference cache.
+    """
+
+    cache = read_csv_safe(path, TERM_COLUMNS)
+    cache["name"] = cache["name"].map(clean_html_text)
+    cache["slug"] = cache["slug"].map(clean_html_text)
+
+    return cache
+
+
+def load_reference_map(path: Path) -> dict[int, str]:
+    return build_term_map(load_reference_cache(path))
 
 
 def fetch_posts(
@@ -248,6 +338,14 @@ def fetch_posts(
     )
 
 
+def _raw_safe_post(post: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: value
+        for key, value in post.items()
+        if key != "content"
+    }
+
+
 def save_raw_payload(
     posts: list[dict[str, Any]],
     fetched_at: str,
@@ -266,7 +364,7 @@ def save_raw_payload(
         "api_endpoint": POSTS_ENDPOINT,
         "total_pages": total_pages,
         "total_items": total_items,
-        "posts": posts,
+        "posts": [_raw_safe_post(post) for post in posts],
     }
     temp_file = raw_file.with_name(f".{raw_file.name}.tmp")
     temp_file.write_text(
@@ -299,21 +397,16 @@ def append_fetch_log(row: dict[str, object]) -> None:
     atomic_write_csv(combined, FETCH_LOG_FILE, FETCH_LOG_COLUMNS)
 
 
-def split_rows(rows: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    keep = rows[rows["filter_status"] == "keep"].copy()
-    review = rows[rows["filter_status"] == "review"].copy()
-    reject = rows[rows["filter_status"] == "reject"].copy()
-
-    return keep, review, reject
-
-
 def write_outputs(rows: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    reconcile_news_statuses(
+        rows=rows,
+        history_path=HISTORY_FILE,
+        review_path=REVIEW_FILE,
+        reject_path=REJECT_FILE,
+    )
     keep, review, reject = split_rows(rows)
-
-    atomic_write_csv(keep, CURRENT_NEWS_FILE, NEWS_COLUMNS)
-    upsert_keep_history(keep, HISTORY_FILE)
-    upsert_review_queue(review, REVIEW_FILE)
-    upsert_rejected_log(reject, REJECT_FILE)
+    current_keep = rows[rows["filter_status"].isin(["keep", "manual_keep"])].copy()
+    atomic_write_csv(current_keep, CURRENT_NEWS_FILE, NEWS_COLUMNS)
 
     return keep, review, reject
 
@@ -379,6 +472,16 @@ def print_summary(
     print()
     print_top_counts("Direct company matches:", count_pipe_values(keep["matched_tickers"]))
     print()
+    print_top_counts(
+        "Content class distribution:",
+        count_pipe_values(rows["content_class"]),
+    )
+    print()
+    print_top_counts(
+        "Source quality distribution:",
+        count_pipe_values(rows["source_quality"]),
+    )
+    print()
     print(f"Emerging candidates: {emerging_count}")
     print()
     print(f"Saved raw:\n{raw_file or '(not saved)'}")
@@ -403,147 +506,218 @@ def get_window(args: argparse.Namespace) -> tuple[str, str]:
     return format_utc(window_start_dt), format_utc(window_end_dt)
 
 
-def run_backfill(args: argparse.Namespace) -> int:
-    started_at = now_utc_iso()
-    completed_at = ""
-    run_id = f"news_backfill_{compact_timestamp(started_at)}"
-    mode = "dry_run" if args.dry_run else "backfill"
+def _taxonomy_maps_for_posts(
+    posts: list[dict[str, Any]],
+    dry_run: bool,
+) -> tuple[dict[int, str], dict[int, str], int, str]:
+    """
+    Load taxonomy cache, fetch only missing used terms, and return maps.
+    """
+
+    warning = ""
+    pages_requested = 0
+    category_ids, tag_ids = collect_post_term_ids(posts)
+    category_cache = load_reference_cache(CATEGORIES_FILE)
+    tag_cache = load_reference_cache(TAGS_FILE)
+    known_categories = set(pd.to_numeric(category_cache["term_id"], errors="coerce").dropna().astype(int))
+    known_tags = set(pd.to_numeric(tag_cache["term_id"], errors="coerce").dropna().astype(int))
+    missing_category_ids = category_ids - known_categories
+    missing_tag_ids = tag_ids - known_tags
+
+    try:
+        category_terms, category_pages = fetch_terms_by_ids(
+            CATEGORIES_ENDPOINT,
+            missing_category_ids,
+        )
+        tag_terms, tag_pages = fetch_terms_by_ids(
+            TAGS_ENDPOINT,
+            missing_tag_ids,
+        )
+        pages_requested += category_pages + tag_pages
+        updated_at = now_utc_iso()
+        category_cache = upsert_term_cache(
+            category_cache,
+            term_rows(category_terms, updated_at),
+        )
+        tag_cache = upsert_term_cache(
+            tag_cache,
+            term_rows(tag_terms, updated_at),
+        )
+
+        if not dry_run:
+            atomic_write_csv(category_cache, CATEGORIES_FILE, TERM_COLUMNS)
+            atomic_write_csv(tag_cache, TAGS_FILE, TERM_COLUMNS)
+
+    except Exception as error:
+        warning = f"taxonomy warning: {error}"
+        print(f"Warning: {warning}")
+
+    return build_term_map(category_cache), build_term_map(tag_cache), pages_requested, warning
+
+
+def _fetch_and_classify(
+    args: argparse.Namespace,
+) -> tuple[pd.DataFrame, str, str, str, int, int]:
+    """
+    Fetch or load raw posts and return classified rows plus run metadata.
+    """
+
     pages_requested = 0
     raw_file = ""
-    taxonomy_warning = ""
+
+    if args.reprocess_raw:
+        raw_path = Path(args.reprocess_raw)
+        payload = load_raw_payload(raw_path)
+        posts = payload["posts"]
+        window_start = str(payload.get("window_start", ""))
+        window_end = str(payload.get("window_end", ""))
+        raw_file = repo_relative_path(raw_path, BASE_DIR)
+        category_map = load_reference_map(CATEGORIES_FILE)
+        tag_map = load_reference_map(TAGS_FILE)
+
+    else:
+        window_start, window_end = get_window(args)
+        posts, post_pages, _, _ = fetch_posts(
+            window_start=window_start,
+            window_end=window_end,
+        )
+        pages_requested += post_pages
+        category_map, tag_map, taxonomy_pages, taxonomy_warning = _taxonomy_maps_for_posts(
+            posts,
+            dry_run=args.dry_run,
+        )
+        pages_requested += taxonomy_pages
+
+        if args.save_raw and not args.dry_run:
+            raw_path = save_raw_payload(
+                posts=posts,
+                fetched_at=now_utc_iso(),
+                window_start=window_start,
+                window_end=window_end,
+                total_pages=post_pages,
+                total_items=len(posts),
+            )
+            raw_file = repo_relative_path(raw_path, BASE_DIR)
+
+    if not posts:
+        raise RuntimeError("No Semiconductor Engineering posts were fetched.")
+
+    config = load_filter_config(BASE_DIR, MANUAL_DECISIONS_FILE)
+    rows = rows_from_posts(
+        posts=posts,
+        category_map=category_map,
+        tag_map=tag_map,
+        seen_at=now_utc_iso(),
+        config=config,
+    )
+
+    return rows, window_start, window_end, raw_file, pages_requested, len(posts)
+
+
+def _apply_review_decisions() -> int:
+    started_at = now_utc_iso()
+    run_id = f"news_backfill_{compact_timestamp(started_at)}"
+    review = read_csv_safe(REVIEW_FILE, REVIEW_COLUMNS)
+    existing_decisions = read_csv_safe(MANUAL_DECISIONS_FILE, MANUAL_DECISION_COLUMNS)
+    decided = review[review["manual_decision"].fillna("").astype(str).str.strip() != ""].copy()
+
+    if decided.empty:
+        print("No manual review decisions to apply.")
+        return 0
+
+    decided["manual_decision"] = decided["manual_decision"].astype(str).str.strip()
+    invalid = sorted(set(decided["manual_decision"]) - {"keep", "reject"})
+
+    if invalid:
+        raise ValueError(f"Invalid manual decision value(s): {invalid}")
+
+    applied_at = now_utc_iso()
+    decision_rows = decided[
+        ["news_id", "manual_decision", "manual_notes", "reviewed_at"]
+    ].copy()
+    decision_rows["applied_at"] = applied_at
+    updated_decisions = upsert_manual_decisions(existing_decisions, decision_rows)
+    atomic_write_csv(updated_decisions, MANUAL_DECISIONS_FILE, MANUAL_DECISION_COLUMNS)
+
+    rows = decided.reindex(columns=NEWS_COLUMNS).copy()
+    rows["rule_filter_status"] = rows["rule_filter_status"].fillna("").where(
+        rows["rule_filter_status"].fillna("").astype(str).str.strip() != "",
+        rows["filter_status"],
+    )
+    rows["filter_status"] = "manual_" + rows["news_id"].map(
+        decision_rows.set_index("news_id")["manual_decision"].to_dict()
+    ).astype(str)
+    rows["filter_reason"] = rows["filter_status"]
+    rows["manual_override"] = "True"
+    rows["last_seen_at"] = applied_at
+    rows = apply_manual_overrides(rows, updated_decisions)
+    keep, review_df, reject = reconcile_news_statuses(
+        rows=rows,
+        history_path=HISTORY_FILE,
+        review_path=REVIEW_FILE,
+        reject_path=REJECT_FILE,
+    )
+    atomic_write_csv(keep, CURRENT_NEWS_FILE, NEWS_COLUMNS)
+    append_fetch_log(
+        {
+            "run_id": run_id,
+            "started_at": started_at,
+            "completed_at": now_utc_iso(),
+            "source_id": SOURCE_ID,
+            "mode": "apply_review_decisions",
+            "window_start": "",
+            "window_end": "",
+            "pages_requested": 0,
+            "items_fetched": len(rows),
+            "keep_count": len(keep),
+            "review_count": len(review_df),
+            "reject_count": len(reject),
+            "raw_file": "",
+            "status": "success",
+            "error_message": "",
+        }
+    )
+    print(f"Applied {len(rows)} manual review decision(s).")
+    return 0
+
+
+def run_backfill(args: argparse.Namespace) -> int:
+    if args.apply_review_decisions:
+        try:
+            return _apply_review_decisions()
+        except Exception as error:
+            print(f"Error: {error}", file=sys.stderr)
+            return 1
+
+    started_at = now_utc_iso()
+    run_id = f"news_backfill_{compact_timestamp(started_at)}"
+    mode = "dry_run" if args.dry_run else "backfill"
+
+    if args.reprocess_raw:
+        mode = "reprocess_raw_dry_run" if args.dry_run else "reprocess_raw"
+
+    pages_requested = 0
+    raw_file = ""
     window_start = ""
     window_end = ""
     rows = pd.DataFrame(columns=NEWS_COLUMNS)
     keep = pd.DataFrame(columns=NEWS_COLUMNS)
     review = pd.DataFrame(columns=NEWS_COLUMNS)
-    reject = pd.DataFrame(columns=NEWS_COLUMNS)
+    reject = pd.DataFrame(columns=REJECT_COLUMNS)
 
     try:
-        if args.reprocess_raw:
-            mode = "reprocess_raw_dry_run" if args.dry_run else "reprocess_raw"
-            raw_path = Path(args.reprocess_raw)
-            payload = load_raw_payload(raw_path)
-            posts = payload["posts"]
-            window_start = str(payload.get("window_start", ""))
-            window_end = str(payload.get("window_end", ""))
-            raw_file = str(raw_path)
-            category_map = load_reference_map(CATEGORIES_FILE)
-            tag_map = load_reference_map(TAGS_FILE)
-            total_pages = int(payload.get("total_pages", 0) or 0)
-            total_items = int(payload.get("total_items", len(posts)) or len(posts))
-
-        else:
-            window_start, window_end = get_window(args)
-            category_terms: list[dict[str, Any]] = []
-            tag_terms: list[dict[str, Any]] = []
-            category_map: dict[int, str] = {}
-            tag_map: dict[int, str] = {}
-
-            try:
-                category_terms, category_pages = fetch_terms(CATEGORIES_ENDPOINT)
-                tag_terms, tag_pages = fetch_terms(TAGS_ENDPOINT)
-                pages_requested += category_pages + tag_pages
-                category_map = build_term_map(category_terms)
-                tag_map = build_term_map(tag_terms)
-
-                if not args.dry_run:
-                    updated_at = now_utc_iso()
-                    atomic_write_csv(
-                        term_rows(category_terms, updated_at),
-                        CATEGORIES_FILE,
-                        TERM_COLUMNS,
-                    )
-                    atomic_write_csv(
-                        term_rows(tag_terms, updated_at),
-                        TAGS_FILE,
-                        TERM_COLUMNS,
-                    )
-
-            except Exception as error:
-                taxonomy_warning = f"taxonomy warning: {error}"
-                print(f"Warning: {taxonomy_warning}")
-
-            posts, post_pages, total_pages, total_items = fetch_posts(
-                window_start=window_start,
-                window_end=window_end,
-            )
-            pages_requested += post_pages
-
-            if args.save_raw and not args.dry_run:
-                raw_path = save_raw_payload(
-                    posts=posts,
-                    fetched_at=now_utc_iso(),
-                    window_start=window_start,
-                    window_end=window_end,
-                    total_pages=total_pages,
-                    total_items=total_items,
-                )
-                raw_file = str(raw_path)
-
-        if not posts:
-            raise RuntimeError("No Semiconductor Engineering posts were fetched.")
-
-        config = load_filter_config(BASE_DIR)
-        seen_at = now_utc_iso()
-        rows = rows_from_posts(
-            posts=posts,
-            category_map=category_map,
-            tag_map=tag_map,
-            seen_at=seen_at,
-            config=config,
-        )
+        rows, window_start, window_end, raw_file, pages_requested, _ = _fetch_and_classify(args)
         keep, review, reject = split_rows(rows)
 
         if not args.dry_run:
             keep, review, reject = write_outputs(rows)
 
-        completed_at = now_utc_iso()
-        error_message = taxonomy_warning
-
-        append_fetch_log(
-            {
-                "run_id": run_id,
-                "started_at": started_at,
-                "completed_at": completed_at,
-                "source_id": SOURCE_ID,
-                "mode": mode,
-                "window_start": window_start,
-                "window_end": window_end,
-                "pages_requested": pages_requested,
-                "items_fetched": len(rows),
-                "keep_count": len(keep),
-                "review_count": len(review),
-                "reject_count": len(reject),
-                "raw_file": raw_file,
-                "status": "success",
-                "error_message": error_message,
-            }
-        )
-
-        print_summary(
-            window_start=window_start,
-            window_end=window_end,
-            rows=rows,
-            keep=keep,
-            review=review,
-            reject=reject,
-            raw_file=raw_file,
-        )
-
-        _ = total_pages
-        _ = total_items
-        return 0
-
-    except Exception as error:
-        completed_at = now_utc_iso()
-        error_message = str(error)
-
-        try:
+        if not args.dry_run:
             append_fetch_log(
                 {
                     "run_id": run_id,
                     "started_at": started_at,
-                    "completed_at": completed_at,
+                    "completed_at": now_utc_iso(),
                     "source_id": SOURCE_ID,
                     "mode": mode,
                     "window_start": window_start,
@@ -554,12 +728,48 @@ def run_backfill(args: argparse.Namespace) -> int:
                     "review_count": len(review),
                     "reject_count": len(reject),
                     "raw_file": raw_file,
-                    "status": "failed",
-                    "error_message": error_message,
+                    "status": "success",
+                    "error_message": "",
                 }
             )
-        except Exception as log_error:
-            print(f"Warning: failed to write fetch log: {log_error}")
+
+        print_summary(
+            window_start=window_start,
+            window_end=window_end,
+            rows=rows,
+            keep=keep,
+            review=review,
+            reject=reject,
+            raw_file=raw_file if not args.dry_run else "",
+        )
+        return 0
+
+    except Exception as error:
+        error_message = str(error)
+
+        if not args.dry_run:
+            try:
+                append_fetch_log(
+                    {
+                        "run_id": run_id,
+                        "started_at": started_at,
+                        "completed_at": now_utc_iso(),
+                        "source_id": SOURCE_ID,
+                        "mode": mode,
+                        "window_start": window_start,
+                        "window_end": window_end,
+                        "pages_requested": pages_requested,
+                        "items_fetched": len(rows),
+                        "keep_count": len(keep),
+                        "review_count": len(review),
+                        "reject_count": len(reject),
+                        "raw_file": raw_file,
+                        "status": "failed",
+                        "error_message": error_message,
+                    }
+                )
+            except Exception as log_error:
+                print(f"Warning: failed to write fetch log: {log_error}")
 
         print(f"Error: {error_message}", file=sys.stderr)
         return 1

@@ -1,6 +1,6 @@
 import unittest
 
-from news.news_filter import filter_article, load_filter_config
+from news.news_filter import classify_content, filter_article, load_filter_config
 
 
 class NewsFilterTests(unittest.TestCase):
@@ -76,6 +76,93 @@ class NewsFilterTests(unittest.TestCase):
 
         self.assertIn("co packaged optics", result["matched_keywords"])
         self.assertEqual(result["filter_status"], "keep")
+
+    def test_micron_requires_company_context(self):
+        false_match = self.classify(
+            "Improving Etch Control For 5 Micron Features",
+            "Metrology teams compare linewidth variation across process windows.",
+        )
+        true_match = self.classify(
+            "Micron Technology Advances HBM4 Memory",
+            "The company discussed DRAM and high bandwidth memory roadmaps.",
+        )
+
+        self.assertNotIn("MU", false_match["matched_tickers"])
+        self.assertIn("MU", true_match["matched_tickers"])
+
+    def test_coherent_requires_optical_context(self):
+        false_match = self.classify(
+            "A Coherent Approach To Verification",
+            "EDA teams are improving coverage closure.",
+        )
+        true_match = self.classify(
+            "Coherent Optical Transceiver Advances For AI Networks",
+            "Photonics and optical interconnect demand continues to grow.",
+        )
+
+        self.assertNotIn("COHR", false_match["matched_tickers"])
+        self.assertIn("COHR", true_match["matched_tickers"])
+
+    def test_oracle_requires_cloud_context(self):
+        false_match = self.classify(
+            "EDA Teams Tune Oracle Rules",
+            "A verification methodology article uses oracle checks generically.",
+        )
+        true_match = self.classify(
+            "Oracle Cloud Infrastructure Expands AI Capacity",
+            "OCI deployments add data center infrastructure for accelerators.",
+        )
+
+        self.assertNotIn("ORCL", false_match["matched_tickers"])
+        self.assertIn("ORCL", true_match["matched_tickers"])
+
+    def test_duplicate_aliases_score_once_per_ticker_field(self):
+        result = self.classify("NVIDIA Blackwell Platform For AI Accelerators")
+
+        self.assertIn("NVDA", result["matched_tickers"])
+        self.assertEqual(result["company_score"], 8)
+
+    def test_all_master_tickers_have_aliases(self):
+        master_tickers = set(self.config.companies["ticker"].astype(str))
+        alias_tickers = set(self.config.aliases["ticker"].astype(str))
+
+        self.assertFalse(master_tickers - alias_tickers)
+
+    def test_plural_keywords_match(self):
+        result = self.classify("1 Megawatt Racks In Data Centers")
+
+        self.assertIn("megawatt racks", result["matched_keywords"])
+        self.assertEqual(result["filter_status"], "keep")
+
+    def test_ucie_keyword_matches(self):
+        result = self.classify("UCIe Interconnect Options For Chiplets")
+
+        self.assertIn("UCIe", result["matched_keywords"])
+        self.assertIn(result["filter_status"], {"keep", "review"})
+
+    def test_data_movement_is_review_or_keep(self):
+        result = self.classify("Overcoming Bottlenecks In Data Movement")
+
+        self.assertIn("data movement", result["matched_keywords"])
+        self.assertIn(result["filter_status"], {"keep", "review"})
+
+    def test_content_classification(self):
+        self.assertEqual(
+            classify_content("Week In Review: Manufacturing", ["News"], []),
+            ("roundup", "B"),
+        )
+        self.assertEqual(
+            classify_content("New Paper", ["Technical Papers"], []),
+            ("technical_paper", "B"),
+        )
+        self.assertEqual(
+            classify_content("Vendor Guide", ["White Papers"], []),
+            ("whitepaper", "C"),
+        )
+        self.assertEqual(
+            classify_content("Capacity Update", ["Top Stories"], []),
+            ("editorial", "A"),
+        )
 
 
 if __name__ == "__main__":

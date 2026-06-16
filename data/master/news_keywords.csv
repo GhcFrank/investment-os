@@ -82,3 +82,63 @@ Emerging Research,Bottleneck,shortage,bottleneck,0,true
 Emerging Research,Bottleneck,supply constraint,bottleneck,0,true
 Emerging Research,Bottleneck,power density,bottleneck,0,true
 Emerging Research,Bottleneck,signal integrity,bottleneck,0,true
+AI Infrastructure,GPU,AI accelerators,strong_phrase,5,true
+AI Infrastructure,GPU,inference infrastructure,strong_phrase,5,true
+AI Infrastructure,GPU,rack scale,strong_phrase,4,true
+AI Infrastructure,GPU,rack-scale,strong_phrase,4,true
+AI Infrastructure,Memory,memory bottleneck,strong_phrase,5,true
+AI Infrastructure,Memory,memory bottlenecks,strong_phrase,5,true
+AI Infrastructure,Networking,UCIe,medium_keyword,4,true
+AI Infrastructure,Networking,NVLink,medium_keyword,4,true
+AI Infrastructure,Networking,UALink,medium_keyword,4,true
+AI Infrastructure,Networking,Ultra Ethernet,medium_keyword,4,true
+AI Infrastructure,Networking,data movement,strong_phrase,5,true
+AI Infrastructure,Networking,interconnect options,strong_phrase,4,true
+AI Infrastructure,Networking,resource sharing,strong_phrase,4,true
+AI Infrastructure,Optical,optical interconnects,strong_phrase,5,true
+AI Infrastructure,Optical,optical I/O,strong_phrase,5,true
+AI Infrastructure,Optical,optical IO,strong_phrase,5,true
+AI Infrastructure,Optical,co pack optics,strong_phrase,5,true
+AI Infrastructure,Power,megawatt racks,strong_phrase,5,true
+AI Infrastructure,Power,component level power management,strong_phrase,5,true
+AI Infrastructure,Power,component-level power management,strong_phrase,5,true
+AI Infrastructure,Power,power management,strong_phrase,4,true
+AI Infrastructure,Power,energy efficiency,strong_phrase,4,true
+AI Infrastructure,Equipment,chiplets,medium_keyword,3,true
+AI Infrastructure,Equipment,wafer level,strong_phrase,4,true
+AI Infrastructure,Equipment,wafer-level,strong_phrase,4,true
+AI Infrastructure,Equipment,die to die,strong_phrase,4,true
+AI Infrastructure,Equipment,die-to-die,strong_phrase,4,true
+AI Infrastructure,Equipment,low temperature solder,strong_phrase,4,true
+AI Infrastructure,Equipment,low-temp solder,strong_phrase,4,true
+AI Infrastructure,Equipment,low temperature solders,strong_phrase,4,true
+AI Infrastructure,Equipment,low-temp solders,strong_phrase,4,true
+AI Infrastructure,Equipment,heterogeneous integration,strong_phrase,5,true
+AI Infrastructure,Equipment,silicon interposer,strong_phrase,4,true
+AI Infrastructure,Equipment,advanced substrate,strong_phrase,4,true
+AI Infrastructure,Equipment,optical scale up,strong_phrase,5,true
+AI Infrastructure,Equipment,optical scale-up,strong_phrase,5,true
+Emerging Research,AI Hardware,AI accelerators,scope_anchor,0,true
+Emerging Research,AI Hardware,data centers,scope_anchor,0,true
+Emerging Research,AI Hardware,data movement,scope_anchor,0,true
+Emerging Research,AI Hardware,power management,scope_anchor,0,true
+Emerging Research,AI Hardware,energy efficiency,scope_anchor,0,true
+Emerging Research,AI Hardware,interconnect options,scope_anchor,0,true
+Emerging Research,AI Hardware,resource sharing,scope_anchor,0,true
+Emerging Research,AI Hardware,rack scale,scope_anchor,0,true
+Emerging Research,AI Hardware,rack-scale,scope_anchor,0,true
+Emerging Research,AI Hardware,heterogeneous integration,scope_anchor,0,true
+Emerging Research,AI Hardware,optical I/O,scope_anchor,0,true
+Emerging Research,AI Hardware,optical IO,scope_anchor,0,true
+Emerging Research,Bottleneck,bottlenecks,bottleneck,0,true
+Emerging Research,Bottleneck,data movement,bottleneck,0,true
+Emerging Research,Bottleneck,power management,bottleneck,0,true
+Emerging Research,Bottleneck,energy efficiency,bottleneck,0,true
+Emerging Research,Bottleneck,interconnect options,bottleneck,0,true
+Emerging Research,Bottleneck,resource sharing,bottleneck,0,true
+Emerging Research,Bottleneck,rack scale,bottleneck,0,true
+Emerging Research,Bottleneck,rack-scale,bottleneck,0,true
+Emerging Research,Bottleneck,heterogeneous integration,bottleneck,0,true
+Emerging Research,Bottleneck,thermal management,bottleneck,0,true
+Emerging Research,Bottleneck,yield loss,bottleneck,0,true
+Emerging Research,Bottleneck,qualification,bottleneck,0,true
