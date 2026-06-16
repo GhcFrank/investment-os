@@ -1,2 +1,2 @@
 date,market_id,event_id,slug,question,end_date,active,closed,outcomes,outcome_prices,volume,liquidity,url
-2026-06-15,2501817,582062,mu-quarterly-earnings-nongaap-eps-06-24-2026-19pt66,Will Micron Technology (MU) beat quarterly earnings?,2026-06-24T21:00:00Z,True,False,"[""Yes"", ""No""]","[""0.9735"", ""0.0265""]",100.792375,1565.76221,https://polymarket.com/event/mu-quarterly-earnings-nongaap-eps-06-24-2026-19pt66
+2026-06-16,2501817,582062,mu-quarterly-earnings-nongaap-eps-06-24-2026-19pt66,Will Micron Technology (MU) beat quarterly earnings?,2026-06-24T21:00:00Z,True,False,"[""Yes"", ""No""]","[""0.97"", ""0.03""]",144.01432699999998,1532.94549,https://polymarket.com/event/mu-quarterly-earnings-nongaap-eps-06-24-2026-19pt66
