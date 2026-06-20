@@ -14,6 +14,7 @@ from news.news_filter import (
     REJECT_COLUMNS,
     REVIEW_COLUMNS,
     assert_no_cross_status_overlap,
+    load_manual_decisions,
     reconcile_news_statuses,
 )
 from news.news_utils import atomic_write_csv, read_csv_safe
@@ -84,29 +85,23 @@ class NewsStatusTests(unittest.TestCase):
             self.assertEqual(first_seen, "2026-01-02T00:00:00Z")
             self.assertEqual(set(keep_df["filter_rule_version"]), {FILTER_RULE_VERSION})
 
-    def test_reconcile_preserves_review_manual_fields(self):
+    def test_reconcile_review_queue_has_no_manual_fields(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             history = tmp_path / "history.csv"
             review = tmp_path / "review.csv"
             reject = tmp_path / "reject.csv"
-            old_review = {
-                **news_row("semiengineering_4", "review", "2026-01-04T00:00:00Z", "2026-01-04T00:00:00Z"),
-                "manual_decision": "",
-                "manual_notes": "needs domain check",
-                "reviewed_at": "2026-01-05T00:00:00Z",
-            }
-            atomic_write_csv(pd.DataFrame([old_review]), review, REVIEW_COLUMNS)
 
             processed = pd.DataFrame(
                 [news_row("semiengineering_4", "review", "2026-06-01T00:00:00Z", "2026-06-01T00:00:00Z")],
                 columns=NEWS_COLUMNS,
             )
             _, review_df, _ = reconcile_news_statuses(processed, history, review, reject)
-            row = review_df.set_index("news_id").loc["semiengineering_4"]
 
-            self.assertEqual(row["manual_notes"], "needs domain check")
-            self.assertEqual(row["reviewed_at"], "2026-01-05T00:00:00Z")
+            self.assertNotIn("manual_decision", review_df.columns)
+            self.assertNotIn("manual_notes", review_df.columns)
+            self.assertNotIn("reviewed_at", review_df.columns)
+            self.assertEqual(set(review_df["news_id"]), {"semiengineering_4"})
 
     def test_reconcile_handles_missing_and_empty_files(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -139,6 +134,81 @@ class NewsStatusTests(unittest.TestCase):
 
 
 class ManualDecisionTests(unittest.TestCase):
+    def test_load_manual_decisions_missing_and_empty_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            missing = load_manual_decisions(tmp_path / "missing.csv")
+            empty_file = tmp_path / "empty.csv"
+            empty_file.write_text("", encoding="utf-8")
+            empty = load_manual_decisions(empty_file)
+
+            self.assertEqual(list(missing.columns), MANUAL_DECISION_COLUMNS)
+            self.assertTrue(missing.empty)
+            self.assertTrue(empty.empty)
+
+    def test_load_manual_decisions_validates_and_dedupes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "manual.csv"
+            rows = pd.DataFrame(
+                [
+                    {
+                        "news_id": "A",
+                        "manual_decision": "keep",
+                        "manual_notes": "old",
+                        "reviewed_at": "2026-06-01T00:00:00Z",
+                        "applied_at": "",
+                    },
+                    {
+                        "news_id": "A",
+                        "manual_decision": "reject",
+                        "manual_notes": "new",
+                        "reviewed_at": "2026-06-02T00:00:00Z",
+                        "applied_at": "",
+                    },
+                    {
+                        "news_id": "B",
+                        "manual_decision": "",
+                        "manual_notes": "blank ignored",
+                        "reviewed_at": "",
+                        "applied_at": "",
+                    },
+                    {
+                        "news_id": "C",
+                        "manual_decision": "keep",
+                        "manual_notes": "valid",
+                        "reviewed_at": "",
+                        "applied_at": "",
+                    },
+                ],
+                columns=MANUAL_DECISION_COLUMNS,
+            )
+            atomic_write_csv(rows, path, MANUAL_DECISION_COLUMNS)
+            loaded = load_manual_decisions(path)
+
+            self.assertEqual(set(loaded["news_id"]), {"A", "C"})
+            self.assertEqual(
+                loaded.set_index("news_id").loc["A", "manual_decision"],
+                "reject",
+            )
+
+            invalid_path = Path(tmp) / "invalid.csv"
+            invalid = pd.DataFrame(
+                [
+                    {
+                        "news_id": "D",
+                        "manual_decision": "maybe",
+                        "manual_notes": "",
+                        "reviewed_at": "",
+                        "applied_at": "",
+                    }
+                ],
+                columns=MANUAL_DECISION_COLUMNS,
+            )
+            atomic_write_csv(invalid, invalid_path, MANUAL_DECISION_COLUMNS)
+
+            with self.assertRaises(ValueError):
+                load_manual_decisions(invalid_path)
+
     def test_apply_review_decisions_persists_and_is_idempotent(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -150,13 +220,20 @@ class ManualDecisionTests(unittest.TestCase):
                 "FETCH_LOG_FILE": tmp_path / "fetch_log.csv",
                 "MANUAL_DECISIONS_FILE": tmp_path / "manual.csv",
             }
-            review_row = {
-                **news_row("semiengineering_6", "review", "2026-06-01T00:00:00Z", "2026-06-01T00:00:00Z"),
+            review_row = news_row("semiengineering_6", "review", "2026-06-01T00:00:00Z", "2026-06-01T00:00:00Z")
+            atomic_write_csv(pd.DataFrame([review_row]), paths["REVIEW_FILE"], REVIEW_COLUMNS)
+            manual_row = {
+                "news_id": "semiengineering_6",
                 "manual_decision": "keep",
                 "manual_notes": "important capacity signal",
                 "reviewed_at": "2026-06-02T00:00:00Z",
+                "applied_at": "",
             }
-            atomic_write_csv(pd.DataFrame([review_row]), paths["REVIEW_FILE"], REVIEW_COLUMNS)
+            atomic_write_csv(
+                pd.DataFrame([manual_row]),
+                paths["MANUAL_DECISIONS_FILE"],
+                MANUAL_DECISION_COLUMNS,
+            )
 
             with patch.object(fetch, "CURRENT_NEWS_FILE", paths["CURRENT_NEWS_FILE"]):
                 with patch.object(fetch, "HISTORY_FILE", paths["HISTORY_FILE"]):
@@ -176,9 +253,47 @@ class ManualDecisionTests(unittest.TestCase):
 
             self.assertEqual(len(manual), 1)
             self.assertEqual(manual.loc[0, "manual_notes"], "important capacity signal")
-            self.assertEqual(history.loc[0, "filter_status"], "manual_keep")
+            self.assertNotEqual(manual.loc[0, "applied_at"], "")
+            self.assertEqual(history.loc[0, "filter_status"], "keep")
+            self.assertEqual(history.loc[0, "filter_reason"], "manual_keep")
             self.assertEqual(history.loc[0, "manual_override"], "True")
             self.assertTrue(review.empty)
+
+    def test_apply_manual_reject_moves_keep_to_rejected_log(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            paths = {
+                "CURRENT_NEWS_FILE": tmp_path / "current.csv",
+                "HISTORY_FILE": tmp_path / "history.csv",
+                "REVIEW_FILE": tmp_path / "review.csv",
+                "REJECT_FILE": tmp_path / "reject.csv",
+                "FETCH_LOG_FILE": tmp_path / "fetch_log.csv",
+                "MANUAL_DECISIONS_FILE": tmp_path / "manual.csv",
+            }
+            keep_row = news_row("semiengineering_7", "keep", "2026-06-01T00:00:00Z", "2026-06-01T00:00:00Z")
+            manual_row = {
+                "news_id": "semiengineering_7",
+                "manual_decision": "reject",
+                "manual_notes": "not relevant",
+                "reviewed_at": "2026-06-02T00:00:00Z",
+                "applied_at": "",
+            }
+            atomic_write_csv(pd.DataFrame([keep_row]), paths["HISTORY_FILE"], NEWS_COLUMNS)
+            atomic_write_csv(pd.DataFrame([manual_row]), paths["MANUAL_DECISIONS_FILE"], MANUAL_DECISION_COLUMNS)
+
+            with ExitStack() as stack:
+                for name, path in paths.items():
+                    stack.enter_context(patch.object(fetch, name, path))
+
+                exit_code = fetch._apply_review_decisions()
+
+            self.assertEqual(exit_code, 0)
+            history = read_csv_safe(paths["HISTORY_FILE"], NEWS_COLUMNS)
+            reject = read_csv_safe(paths["REJECT_FILE"], REJECT_COLUMNS)
+
+            self.assertTrue(history.empty)
+            self.assertEqual(set(reject["news_id"]), {"semiengineering_7"})
+            self.assertEqual(reject.loc[0, "filter_reason"], "manual_reject")
 
     def test_apply_review_updates_history_but_not_current_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -197,15 +312,18 @@ class ManualDecisionTests(unittest.TestCase):
                 news_row("semiengineering_C", "keep", "2026-06-01T00:00:00Z", "2026-06-01T00:00:00Z"),
             ]
             current_rows = [news_row("semiengineering_C", "keep", "2026-06-01T00:00:00Z", "2026-06-01T00:00:00Z")]
-            review_row = {
-                **news_row("semiengineering_D", "review", "2026-06-02T00:00:00Z", "2026-06-02T00:00:00Z"),
+            review_row = news_row("semiengineering_D", "review", "2026-06-02T00:00:00Z", "2026-06-02T00:00:00Z")
+            manual_row = {
+                "news_id": "semiengineering_D",
                 "manual_decision": "keep",
                 "manual_notes": "promote",
                 "reviewed_at": "2026-06-03T00:00:00Z",
+                "applied_at": "",
             }
             atomic_write_csv(pd.DataFrame(history_rows), paths["HISTORY_FILE"], NEWS_COLUMNS)
             atomic_write_csv(pd.DataFrame(current_rows), paths["CURRENT_NEWS_FILE"], NEWS_COLUMNS)
             atomic_write_csv(pd.DataFrame([review_row]), paths["REVIEW_FILE"], REVIEW_COLUMNS)
+            atomic_write_csv(pd.DataFrame([manual_row]), paths["MANUAL_DECISIONS_FILE"], MANUAL_DECISION_COLUMNS)
 
             with ExitStack() as stack:
                 for name, path in paths.items():

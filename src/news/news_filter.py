@@ -28,6 +28,7 @@ from news.news_utils import (
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 MASTER_DIR = BASE_DIR / "data" / "master"
+MANUAL_DECISIONS_FILE = BASE_DIR / "data" / "news" / "news_manual_decisions.csv"
 
 FILTER_RULE_VERSION = "news_filter_v1_1"
 ALIAS_CONTEXT_WINDOW_TOKENS = 12
@@ -70,12 +71,8 @@ NEWS_COLUMNS = [
     "last_seen_at",
 ]
 
-REVIEW_COLUMNS = [
-    *NEWS_COLUMNS,
-    "manual_decision",
-    "manual_notes",
-    "reviewed_at",
-]
+REVIEW_QUEUE_COLUMNS = [*NEWS_COLUMNS]
+REVIEW_COLUMNS = REVIEW_QUEUE_COLUMNS
 
 REJECT_COLUMNS = [
     "news_id",
@@ -224,6 +221,60 @@ def _normalize_keywords(keywords: pd.DataFrame) -> pd.DataFrame:
     return work.drop_duplicates(subset=duplicate_columns, keep="first")
 
 
+def _active_manual_decisions(decisions: pd.DataFrame) -> pd.DataFrame:
+    work = decisions.reindex(columns=MANUAL_DECISION_COLUMNS).copy()
+
+    if work.empty:
+        return pd.DataFrame(columns=[*MANUAL_DECISION_COLUMNS, "_row_order"])
+
+    work["_row_order"] = range(len(work))
+    work["news_id"] = work["news_id"].fillna("").astype(str).str.strip()
+    work["manual_decision"] = (
+        work["manual_decision"].fillna("").astype(str).str.strip().str.lower()
+    )
+    active = work[work["manual_decision"] != ""].copy()
+
+    if active.empty:
+        return active
+
+    missing_news_id = active["news_id"] == ""
+
+    if missing_news_id.any():
+        raise ValueError("Manual decision row(s) with non-empty decision need news_id.")
+
+    invalid = sorted(set(active["manual_decision"]) - {"keep", "reject"})
+
+    if invalid:
+        raise ValueError(f"Invalid manual decision value(s): {invalid}")
+
+    active["_reviewed_at_sort"] = pd.to_datetime(
+        active["reviewed_at"],
+        errors="coerce",
+        utc=True,
+    )
+    active["_has_reviewed_at"] = active["_reviewed_at_sort"].notna().astype(int)
+    active = active.sort_values(
+        by=["news_id", "_has_reviewed_at", "_reviewed_at_sort", "_row_order"],
+        na_position="first",
+    )
+
+    return active.drop_duplicates(subset=["news_id"], keep="last")
+
+
+def load_manual_decisions(path: Path = MANUAL_DECISIONS_FILE) -> pd.DataFrame:
+    """
+    Load active manual keep/reject decisions with stable schema and validation.
+    """
+
+    decisions = read_csv_safe(path, MANUAL_DECISION_COLUMNS)
+    active = _active_manual_decisions(decisions)
+
+    if active.empty:
+        return pd.DataFrame(columns=MANUAL_DECISION_COLUMNS)
+
+    return active.reindex(columns=MANUAL_DECISION_COLUMNS)
+
+
 def load_filter_config(
     base_dir: Path = BASE_DIR,
     manual_decisions_file: Path | None = None,
@@ -268,9 +319,8 @@ def load_filter_config(
             "enabled",
         ],
     )
-    manual_decisions = read_csv_safe(
-        manual_decisions_file or news_dir / "news_manual_decisions.csv",
-        MANUAL_DECISION_COLUMNS,
+    manual_decisions = load_manual_decisions(
+        manual_decisions_file or news_dir / "news_manual_decisions.csv"
     )
 
     return FilterConfig(
@@ -843,7 +893,7 @@ def apply_manual_overrides(
         if decision is None:
             continue
 
-        updated.at[index, "filter_status"] = f"manual_{decision}"
+        updated.at[index, "filter_status"] = decision
         updated.at[index, "filter_reason"] = f"manual_{decision}"
         updated.at[index, "manual_override"] = "True"
 
@@ -911,27 +961,6 @@ def _first_seen_map(*frames: pd.DataFrame) -> dict[str, str]:
     return {news_id: sorted(seen_values)[0] for news_id, seen_values in values.items()}
 
 
-def _manual_field_map(review_df: pd.DataFrame) -> dict[str, dict[str, str]]:
-    manual: dict[str, dict[str, str]] = {}
-
-    if review_df.empty:
-        return manual
-
-    for _, row in review_df.iterrows():
-        news_id = str(row.get("news_id", "")).strip()
-
-        if not news_id:
-            continue
-
-        manual[news_id] = {
-            "manual_decision": str(row.get("manual_decision", "") or ""),
-            "manual_notes": str(row.get("manual_notes", "") or ""),
-            "reviewed_at": str(row.get("reviewed_at", "") or ""),
-        }
-
-    return manual
-
-
 def assert_no_cross_status_overlap(
     keep_df: pd.DataFrame,
     review_df: pd.DataFrame,
@@ -976,7 +1005,6 @@ def reconcile_news_statuses(
     existing_reject = read_csv_safe(reject_path, REJECT_COLUMNS)
     processed_ids = set(rows["news_id"].dropna().astype(str))
     first_seen = _first_seen_map(existing_keep, existing_review, existing_reject, rows)
-    manual_fields = _manual_field_map(existing_review)
 
     remaining_keep = existing_keep[~existing_keep["news_id"].isin(processed_ids)]
     remaining_review = existing_review[~existing_review["news_id"].isin(processed_ids)]
@@ -990,21 +1018,6 @@ def reconcile_news_statuses(
         frame["first_seen_at"] = frame["news_id"].map(first_seen).fillna(
             frame["first_seen_at"]
         )
-
-    if not new_review.empty:
-        for column in ("manual_decision", "manual_notes", "reviewed_at"):
-            if column not in new_review.columns:
-                new_review[column] = ""
-
-        for index, row in new_review.iterrows():
-            news_id = str(row.get("news_id", ""))
-            manual = manual_fields.get(news_id)
-
-            if manual is None:
-                continue
-
-            for column, value in manual.items():
-                new_review.at[index, column] = value
 
     keep_df = pd.concat([remaining_keep, new_keep], ignore_index=True)
     review_df = pd.concat([remaining_review, new_review], ignore_index=True)
@@ -1061,17 +1074,14 @@ def upsert_manual_decisions(
     Upsert canonical manual review decisions.
     """
 
-    invalid = sorted(
-        set(decisions["manual_decision"].dropna().astype(str)) - {"keep", "reject"}
-    )
-
-    if invalid:
-        raise ValueError(f"Invalid manual decision value(s): {invalid}")
-
     combined = pd.concat([existing, decisions], ignore_index=True)
 
     if combined.empty:
         return pd.DataFrame(columns=MANUAL_DECISION_COLUMNS)
 
-    combined = combined.drop_duplicates(subset=["news_id"], keep="last")
-    return combined.reindex(columns=MANUAL_DECISION_COLUMNS)
+    active = _active_manual_decisions(combined)
+
+    if active.empty:
+        return pd.DataFrame(columns=MANUAL_DECISION_COLUMNS)
+
+    return active.reindex(columns=MANUAL_DECISION_COLUMNS)

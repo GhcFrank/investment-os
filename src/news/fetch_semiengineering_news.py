@@ -19,12 +19,11 @@ from news.news_filter import (
     NEWS_COLUMNS,
     REJECT_COLUMNS,
     REVIEW_COLUMNS,
-    apply_manual_overrides,
+    load_manual_decisions,
     load_filter_config,
     reconcile_news_statuses,
     rows_from_posts,
     split_rows,
-    upsert_manual_decisions,
 )
 from news.news_utils import (
     atomic_write_csv,
@@ -653,43 +652,112 @@ def _fetch_and_classify(
     return rows, window_start, window_end, raw_file, pages_requested, len(posts)
 
 
+def _state_row_by_id(frame: pd.DataFrame, news_id: str) -> pd.Series | None:
+    if frame.empty or "news_id" not in frame.columns:
+        return None
+
+    matches = frame[frame["news_id"].fillna("").astype(str) == news_id]
+
+    if matches.empty:
+        return None
+
+    return matches.iloc[-1]
+
+
+def _news_row_from_state(row: pd.Series, applied_at: str) -> dict[str, object]:
+    data = {column: "" for column in NEWS_COLUMNS}
+
+    for column in NEWS_COLUMNS:
+        if column in row.index:
+            data[column] = row.get(column, "")
+
+    if not str(data.get("first_seen_at", "") or "").strip():
+        data["first_seen_at"] = applied_at
+
+    return data
+
+
+def _update_manual_decisions_applied_at(
+    path: Path,
+    applied_news_ids: set[str],
+    applied_at: str,
+) -> None:
+    if not applied_news_ids:
+        return
+
+    decisions = read_csv_safe(path, MANUAL_DECISION_COLUMNS)
+
+    if decisions.empty:
+        return
+
+    decisions["news_id"] = decisions["news_id"].fillna("").astype(str).str.strip()
+    decisions["manual_decision"] = (
+        decisions["manual_decision"].fillna("").astype(str).str.strip().str.lower()
+    )
+    decisions["applied_at"] = decisions["applied_at"].fillna("").astype(str)
+    mask = (
+        decisions["news_id"].isin(applied_news_ids)
+        & decisions["manual_decision"].isin(["keep", "reject"])
+        & (decisions["applied_at"].str.strip() == "")
+    )
+
+    if mask.any():
+        decisions.loc[mask, "applied_at"] = applied_at
+        atomic_write_csv(decisions, path, MANUAL_DECISION_COLUMNS)
+
+
 def _apply_review_decisions() -> int:
     started_at = now_utc_iso()
     run_id = f"news_backfill_{compact_timestamp(started_at)}"
-    review = read_csv_safe(REVIEW_FILE, REVIEW_COLUMNS)
-    existing_decisions = read_csv_safe(MANUAL_DECISIONS_FILE, MANUAL_DECISION_COLUMNS)
-    decided = review[review["manual_decision"].fillna("").astype(str).str.strip() != ""].copy()
+    manual_decisions = load_manual_decisions(MANUAL_DECISIONS_FILE)
 
-    if decided.empty:
+    if manual_decisions.empty:
         print("No manual review decisions to apply.")
         return 0
 
-    decided["manual_decision"] = decided["manual_decision"].astype(str).str.strip()
-    invalid = sorted(set(decided["manual_decision"]) - {"keep", "reject"})
-
-    if invalid:
-        raise ValueError(f"Invalid manual decision value(s): {invalid}")
-
     applied_at = now_utc_iso()
-    decision_rows = decided[
-        ["news_id", "manual_decision", "manual_notes", "reviewed_at"]
-    ].copy()
-    decision_rows["applied_at"] = applied_at
-    updated_decisions = upsert_manual_decisions(existing_decisions, decision_rows)
-    atomic_write_csv(updated_decisions, MANUAL_DECISIONS_FILE, MANUAL_DECISION_COLUMNS)
+    keep_history = read_csv_safe(HISTORY_FILE, NEWS_COLUMNS)
+    review = read_csv_safe(REVIEW_FILE, REVIEW_COLUMNS)
+    reject_log = read_csv_safe(REJECT_FILE, REJECT_COLUMNS)
+    rows_to_apply: list[dict[str, object]] = []
+    missing_news_ids: list[str] = []
 
-    rows = decided.reindex(columns=NEWS_COLUMNS).copy()
-    rows["rule_filter_status"] = rows["rule_filter_status"].fillna("").where(
-        rows["rule_filter_status"].fillna("").astype(str).str.strip() != "",
-        rows["filter_status"],
-    )
-    rows["filter_status"] = "manual_" + rows["news_id"].map(
-        decision_rows.set_index("news_id")["manual_decision"].to_dict()
-    ).astype(str)
-    rows["filter_reason"] = rows["filter_status"]
-    rows["manual_override"] = "True"
-    rows["last_seen_at"] = applied_at
-    rows = apply_manual_overrides(rows, updated_decisions)
+    for _, decision_row in manual_decisions.iterrows():
+        news_id = str(decision_row.get("news_id", "") or "").strip()
+        decision = str(decision_row.get("manual_decision", "") or "").strip().lower()
+        source_row = None
+
+        for frame in (keep_history, review, reject_log):
+            source_row = _state_row_by_id(frame, news_id)
+
+            if source_row is not None:
+                break
+
+        if source_row is None:
+            missing_news_ids.append(news_id)
+            continue
+
+        row = _news_row_from_state(source_row, applied_at)
+        row["rule_filter_status"] = str(
+            row.get("rule_filter_status", "") or row.get("filter_status", "")
+        )
+        row["filter_status"] = decision
+        row["filter_reason"] = f"manual_{decision}"
+        row["manual_override"] = "True"
+        row["last_seen_at"] = applied_at
+        rows_to_apply.append(row)
+
+    for news_id in missing_news_ids:
+        print(
+            "Warning: manual decision references unknown news_id; "
+            f"will apply after future reprocess if seen: {news_id}"
+        )
+
+    if not rows_to_apply:
+        print("No manual review decisions matched current state files.")
+        return 0
+
+    rows = pd.DataFrame(rows_to_apply, columns=NEWS_COLUMNS)
     _, review_df, reject = reconcile_news_statuses(
         rows=rows,
         history_path=HISTORY_FILE,
@@ -697,6 +765,11 @@ def _apply_review_decisions() -> int:
         reject_path=REJECT_FILE,
     )
     keep, _, _ = split_rows(rows)
+    _update_manual_decisions_applied_at(
+        MANUAL_DECISIONS_FILE,
+        set(rows["news_id"].dropna().astype(str)),
+        applied_at,
+    )
     append_fetch_log(
         {
             "run_id": run_id,
