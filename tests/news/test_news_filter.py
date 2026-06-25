@@ -1,6 +1,15 @@
+import re
 import unittest
 
-from news.news_filter import classify_content, filter_article, load_filter_config
+from news.news_filter import (
+    article_from_post,
+    classify_content,
+    filter_article,
+    load_filter_config,
+)
+
+
+DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
 class NewsFilterTests(unittest.TestCase):
@@ -24,6 +33,34 @@ class NewsFilterTests(unittest.TestCase):
 
         self.assertIn("KEYS", result["matched_tickers"])
         self.assertEqual(result["filter_status"], "keep")
+
+    def test_article_row_dates_are_yyyy_mm_dd(self):
+        row = article_from_post(
+            post={
+                "id": 501,
+                "date": "2026-06-01T00:00:00",
+                "date_gmt": "2026-06-01T04:00:00Z",
+                "modified_gmt": "2026-06-01 04:05:00+00:00",
+                "link": "https://semiengineering.com/test/",
+                "title": {"rendered": "AI Data Center Interconnect"},
+                "excerpt": {"rendered": "Optical links for accelerated systems."},
+                "author": 1,
+                "categories": [11],
+                "tags": [101],
+            },
+            category_map={11: "Top Stories"},
+            tag_map={101: "Optical"},
+            seen_at="2026-06-25",
+        )
+
+        for column in [
+            "published_at_local",
+            "published_at_gmt",
+            "modified_at_gmt",
+            "first_seen_at",
+            "last_seen_at",
+        ]:
+            self.assertRegex(row[column], DATE_PATTERN)
 
     def test_theme_match_without_company(self):
         result = self.classify("Challenges In Wafer-Level Silicon Photonics Packaging")

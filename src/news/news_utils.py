@@ -8,7 +8,7 @@ import html
 import os
 import re
 import time
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from email.utils import parsedate_to_datetime
 from html.parser import HTMLParser
 from pathlib import Path
@@ -68,6 +68,14 @@ def now_utc_iso() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 
+def utc_today_yyyy_mm_dd() -> str:
+    """
+    Return today's UTC date as YYYY-MM-DD.
+    """
+
+    return datetime.now(UTC).date().isoformat()
+
+
 def parse_utc_datetime(value: str) -> datetime:
     """
     Parse an ISO datetime string as UTC.
@@ -84,6 +92,42 @@ def parse_utc_datetime(value: str) -> datetime:
         parsed = parsed.replace(tzinfo=UTC)
 
     return parsed.astimezone(UTC)
+
+
+def to_yyyy_mm_dd(value: object) -> str:
+    """
+    Convert a date/datetime-like value to YYYY-MM-DD.
+    """
+
+    if value is None:
+        return ""
+
+    try:
+        if pd.isna(value):
+            return ""
+    except (TypeError, ValueError):
+        pass
+
+    if isinstance(value, datetime):
+        if value.tzinfo is not None:
+            value = value.astimezone(UTC)
+        return value.date().isoformat()
+
+    if isinstance(value, date):
+        return value.isoformat()
+
+    text = str(value).strip()
+
+    if not text:
+        return ""
+
+    if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text):
+        return text
+
+    try:
+        return parse_utc_datetime(text).date().isoformat()
+    except (TypeError, ValueError):
+        return ""
 
 
 def format_utc(value: datetime) -> str:

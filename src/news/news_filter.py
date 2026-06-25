@@ -20,9 +20,9 @@ from news.news_utils import (
     join_values,
     normalize_match_text,
     normalize_url,
-    normalize_wp_gmt_datetime,
     read_csv_safe,
     safe_int,
+    to_yyyy_mm_dd,
 )
 
 
@@ -95,6 +95,19 @@ MANUAL_DECISION_COLUMNS = [
     "news_id",
     "manual_decision",
     "manual_notes",
+    "reviewed_at",
+    "applied_at",
+]
+
+NEWS_DATE_COLUMNS = [
+    "published_at_local",
+    "published_at_gmt",
+    "modified_at_gmt",
+    "first_seen_at",
+    "last_seen_at",
+]
+
+MANUAL_DECISION_DATE_COLUMNS = [
     "reviewed_at",
     "applied_at",
 ]
@@ -232,6 +245,9 @@ def _active_manual_decisions(decisions: pd.DataFrame) -> pd.DataFrame:
     work["manual_decision"] = (
         work["manual_decision"].fillna("").astype(str).str.strip().str.lower()
     )
+    for column in MANUAL_DECISION_DATE_COLUMNS:
+        work[column] = work[column].map(to_yyyy_mm_dd)
+
     active = work[work["manual_decision"] != ""].copy()
 
     if active.empty:
@@ -273,6 +289,16 @@ def load_manual_decisions(path: Path = MANUAL_DECISIONS_FILE) -> pd.DataFrame:
         return pd.DataFrame(columns=MANUAL_DECISION_COLUMNS)
 
     return active.reindex(columns=MANUAL_DECISION_COLUMNS)
+
+
+def normalize_news_date_columns(df: pd.DataFrame) -> pd.DataFrame:
+    normalized = df.copy()
+
+    for column in NEWS_DATE_COLUMNS:
+        if column in normalized.columns:
+            normalized[column] = normalized[column].map(to_yyyy_mm_dd)
+
+    return normalized
 
 
 def load_filter_config(
@@ -844,9 +870,9 @@ def article_from_post(
         "news_id": f"semiengineering_{source_post_id}",
         "source_id": "semiengineering",
         "source_post_id": source_post_id,
-        "published_at_local": str(post.get("date", "") or ""),
-        "published_at_gmt": normalize_wp_gmt_datetime(post.get("date_gmt", "")),
-        "modified_at_gmt": normalize_wp_gmt_datetime(post.get("modified_gmt", "")),
+        "published_at_local": to_yyyy_mm_dd(post.get("date", "")),
+        "published_at_gmt": to_yyyy_mm_dd(post.get("date_gmt", "")),
+        "modified_at_gmt": to_yyyy_mm_dd(post.get("modified_gmt", "")),
         "title": clean_html_text(post.get("title", "")),
         "excerpt": clean_html_text(post.get("excerpt", "")),
         "url": normalize_url(str(post.get("link", "") or "")),
@@ -857,8 +883,8 @@ def article_from_post(
         "tag_names": join_values(set(tag_names)),
         "content_class": content_class,
         "source_quality": source_quality,
-        "first_seen_at": seen_at,
-        "last_seen_at": seen_at,
+        "first_seen_at": to_yyyy_mm_dd(seen_at),
+        "last_seen_at": to_yyyy_mm_dd(seen_at),
     }
 
 
@@ -951,14 +977,14 @@ def _first_seen_map(*frames: pd.DataFrame) -> dict[str, str]:
 
         for _, row in frame.iterrows():
             news_id = str(row.get("news_id", "")).strip()
-            first_seen = str(row.get("first_seen_at", "")).strip()
+            first_seen = to_yyyy_mm_dd(row.get("first_seen_at", ""))
 
             if not news_id or not first_seen:
                 continue
 
             values.setdefault(news_id, []).append(first_seen)
 
-    return {news_id: sorted(seen_values)[0] for news_id, seen_values in values.items()}
+    return {news_id: min(seen_values) for news_id, seen_values in values.items()}
 
 
 def assert_no_cross_status_overlap(
@@ -1000,9 +1026,10 @@ def reconcile_news_statuses(
     Reconcile processed rows into mutually exclusive status files.
     """
 
-    existing_keep = read_csv_safe(history_path, NEWS_COLUMNS)
-    existing_review = read_csv_safe(review_path, REVIEW_COLUMNS)
-    existing_reject = read_csv_safe(reject_path, REJECT_COLUMNS)
+    rows = normalize_news_date_columns(rows)
+    existing_keep = normalize_news_date_columns(read_csv_safe(history_path, NEWS_COLUMNS))
+    existing_review = normalize_news_date_columns(read_csv_safe(review_path, REVIEW_COLUMNS))
+    existing_reject = normalize_news_date_columns(read_csv_safe(reject_path, REJECT_COLUMNS))
     processed_ids = set(rows["news_id"].dropna().astype(str))
     first_seen = _first_seen_map(existing_keep, existing_review, existing_reject, rows)
 
@@ -1053,6 +1080,9 @@ def reconcile_news_statuses(
     keep_df = keep_df.reindex(columns=NEWS_COLUMNS)
     review_df = review_df.reindex(columns=REVIEW_COLUMNS)
     reject_df = reject_df.reindex(columns=REJECT_COLUMNS)
+    keep_df = normalize_news_date_columns(keep_df)
+    review_df = normalize_news_date_columns(review_df)
+    reject_df = normalize_news_date_columns(reject_df)
 
     for frame in (keep_df, review_df, reject_df):
         if not frame.empty and "filter_rule_version" in frame.columns:

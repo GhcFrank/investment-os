@@ -1,3 +1,4 @@
+import re
 import tempfile
 import unittest
 from contextlib import ExitStack
@@ -18,6 +19,27 @@ from news.news_filter import (
     reconcile_news_statuses,
 )
 from news.news_utils import atomic_write_csv, read_csv_safe
+
+
+DATE_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+TIMESTAMP_PATTERN = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$")
+
+
+def assert_news_dates(test_case: unittest.TestCase, frame: pd.DataFrame) -> None:
+    for column in [
+        "published_at_local",
+        "published_at_gmt",
+        "modified_at_gmt",
+        "first_seen_at",
+        "last_seen_at",
+    ]:
+        if column not in frame.columns:
+            continue
+
+        for value in frame[column].dropna().astype(str):
+            stripped = value.strip()
+            if stripped:
+                test_case.assertRegex(stripped, DATE_PATTERN)
 
 
 def news_row(news_id: str, status: str, first_seen: str, last_seen: str) -> dict[str, str]:
@@ -50,7 +72,22 @@ class NewsStatusTests(unittest.TestCase):
             reject = tmp_path / "reject.csv"
 
             atomic_write_csv(
-                pd.DataFrame([news_row("semiengineering_1", "keep", "2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z")]),
+                pd.DataFrame(
+                    [
+                        news_row(
+                            "semiengineering_1",
+                            "keep",
+                            "2026-01-01T00:00:00Z",
+                            "2026-01-01T00:00:00Z",
+                        ),
+                        news_row(
+                            "semiengineering_2",
+                            "keep",
+                            "2025-12-31T23:00:00Z",
+                            "2026-01-01T00:00:00Z",
+                        ),
+                    ]
+                ),
                 history,
                 NEWS_COLUMNS,
             )
@@ -82,8 +119,18 @@ class NewsStatusTests(unittest.TestCase):
             self.assertIn("semiengineering_3", set(review_df["news_id"]))
             self.assertNotIn("semiengineering_3", set(reject_df["news_id"]))
             first_seen = keep_df.set_index("news_id").loc["semiengineering_2", "first_seen_at"]
-            self.assertEqual(first_seen, "2026-01-02T00:00:00Z")
+            self.assertEqual(first_seen, "2025-12-31")
             self.assertEqual(set(keep_df["filter_rule_version"]), {FILTER_RULE_VERSION})
+            assert_news_dates(self, keep_df)
+            assert_news_dates(self, review_df)
+            assert_news_dates(self, reject_df)
+
+            rewritten_history = read_csv_safe(history, NEWS_COLUMNS)
+            rewritten_review = read_csv_safe(review, REVIEW_COLUMNS)
+            rewritten_reject = read_csv_safe(reject, REJECT_COLUMNS)
+            assert_news_dates(self, rewritten_history)
+            assert_news_dates(self, rewritten_review)
+            assert_news_dates(self, rewritten_reject)
 
     def test_reconcile_review_queue_has_no_manual_fields(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -102,6 +149,7 @@ class NewsStatusTests(unittest.TestCase):
             self.assertNotIn("manual_notes", review_df.columns)
             self.assertNotIn("reviewed_at", review_df.columns)
             self.assertEqual(set(review_df["news_id"]), {"semiengineering_4"})
+            assert_news_dates(self, review_df)
 
     def test_reconcile_handles_missing_and_empty_files(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -123,6 +171,7 @@ class NewsStatusTests(unittest.TestCase):
             self.assertEqual(set(keep_df["news_id"]), {"semiengineering_5"})
             self.assertTrue(review_df.empty)
             self.assertTrue(reject_df.empty)
+            assert_news_dates(self, keep_df)
 
     def test_cross_status_overlap_assertion(self):
         keep = pd.DataFrame([{"news_id": "same"}])
@@ -177,7 +226,7 @@ class ManualDecisionTests(unittest.TestCase):
                         "manual_decision": "keep",
                         "manual_notes": "valid",
                         "reviewed_at": "",
-                        "applied_at": "",
+                        "applied_at": "2026-06-03T01:02:03Z",
                     },
                 ],
                 columns=MANUAL_DECISION_COLUMNS,
@@ -189,6 +238,14 @@ class ManualDecisionTests(unittest.TestCase):
             self.assertEqual(
                 loaded.set_index("news_id").loc["A", "manual_decision"],
                 "reject",
+            )
+            self.assertEqual(
+                loaded.set_index("news_id").loc["A", "reviewed_at"],
+                "2026-06-02",
+            )
+            self.assertEqual(
+                loaded.set_index("news_id").loc["C", "applied_at"],
+                "2026-06-03",
             )
 
             invalid_path = Path(tmp) / "invalid.csv"
@@ -253,11 +310,15 @@ class ManualDecisionTests(unittest.TestCase):
 
             self.assertEqual(len(manual), 1)
             self.assertEqual(manual.loc[0, "manual_notes"], "important capacity signal")
-            self.assertNotEqual(manual.loc[0, "applied_at"], "")
+            self.assertRegex(manual.loc[0, "applied_at"], DATE_PATTERN)
+            self.assertEqual(manual.loc[0, "reviewed_at"], "2026-06-02")
             self.assertEqual(history.loc[0, "filter_status"], "keep")
             self.assertEqual(history.loc[0, "filter_reason"], "manual_keep")
             self.assertEqual(history.loc[0, "manual_override"], "True")
+            assert_news_dates(self, history)
             self.assertTrue(review.empty)
+            fetch_log = read_csv_safe(paths["FETCH_LOG_FILE"], fetch.FETCH_LOG_COLUMNS)
+            self.assertRegex(fetch_log.loc[0, "completed_at"], TIMESTAMP_PATTERN)
 
     def test_apply_manual_reject_moves_keep_to_rejected_log(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -294,6 +355,7 @@ class ManualDecisionTests(unittest.TestCase):
             self.assertTrue(history.empty)
             self.assertEqual(set(reject["news_id"]), {"semiengineering_7"})
             self.assertEqual(reject.loc[0, "filter_reason"], "manual_reject")
+            assert_news_dates(self, reject)
 
     def test_apply_review_updates_history_but_not_current_snapshot(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -339,3 +401,4 @@ class ManualDecisionTests(unittest.TestCase):
             self.assertEqual(set(history["news_id"]), {"semiengineering_A", "semiengineering_B", "semiengineering_C", "semiengineering_D"})
             self.assertEqual(set(current["news_id"]), {"semiengineering_C"})
             self.assertTrue(review.empty)
+            assert_news_dates(self, history)

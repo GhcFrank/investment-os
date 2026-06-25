@@ -1,4 +1,5 @@
 import unittest
+from datetime import UTC, date, datetime
 from unittest.mock import patch
 
 import requests
@@ -20,6 +21,25 @@ class FakeResponse:
 
 
 class GetJsonRetryTests(unittest.TestCase):
+    def test_to_yyyy_mm_dd_normalizes_date_like_values(self):
+        self.assertEqual(
+            news_utils.to_yyyy_mm_dd("2026-06-20T15:30:12Z"),
+            "2026-06-20",
+        )
+        self.assertEqual(news_utils.to_yyyy_mm_dd("2026-06-20"), "2026-06-20")
+        self.assertEqual(
+            news_utils.to_yyyy_mm_dd("2026-06-20 15:30:12+00:00"),
+            "2026-06-20",
+        )
+        self.assertEqual(
+            news_utils.to_yyyy_mm_dd(datetime(2026, 6, 20, 15, 30, tzinfo=UTC)),
+            "2026-06-20",
+        )
+        self.assertEqual(news_utils.to_yyyy_mm_dd(date(2026, 6, 20)), "2026-06-20")
+        self.assertEqual(news_utils.to_yyyy_mm_dd(""), "")
+        self.assertEqual(news_utils.to_yyyy_mm_dd(None), "")
+        self.assertEqual(news_utils.to_yyyy_mm_dd("not a date"), "")
+
     def test_404_does_not_retry(self):
         with patch.object(news_utils.SESSION, "get", return_value=FakeResponse(404)) as get:
             with self.assertRaises(requests.HTTPError):

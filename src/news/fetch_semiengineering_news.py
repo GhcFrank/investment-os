@@ -16,11 +16,14 @@ import pandas as pd
 
 from news.news_filter import (
     MANUAL_DECISION_COLUMNS,
+    MANUAL_DECISION_DATE_COLUMNS,
     NEWS_COLUMNS,
+    NEWS_DATE_COLUMNS,
     REJECT_COLUMNS,
     REVIEW_COLUMNS,
     load_manual_decisions,
     load_filter_config,
+    normalize_news_date_columns,
     reconcile_news_statuses,
     rows_from_posts,
     split_rows,
@@ -34,6 +37,8 @@ from news.news_utils import (
     parse_utc_datetime,
     read_csv_safe,
     repo_relative_path,
+    to_yyyy_mm_dd,
+    utc_today_yyyy_mm_dd,
 )
 
 
@@ -436,6 +441,7 @@ def append_fetch_log(row: dict[str, object]) -> None:
 
 
 def write_outputs(rows: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    rows = normalize_news_date_columns(rows)
     reconcile_news_statuses(
         rows=rows,
         history_path=HISTORY_FILE,
@@ -645,7 +651,7 @@ def _fetch_and_classify(
         posts=posts,
         category_map=category_map,
         tag_map=tag_map,
-        seen_at=now_utc_iso(),
+        seen_at=utc_today_yyyy_mm_dd(),
         config=config,
     )
 
@@ -671,6 +677,9 @@ def _news_row_from_state(row: pd.Series, applied_at: str) -> dict[str, object]:
         if column in row.index:
             data[column] = row.get(column, "")
 
+    for column in NEWS_DATE_COLUMNS:
+        data[column] = to_yyyy_mm_dd(data.get(column, ""))
+
     if not str(data.get("first_seen_at", "") or "").strip():
         data["first_seen_at"] = applied_at
 
@@ -694,7 +703,11 @@ def _update_manual_decisions_applied_at(
     decisions["manual_decision"] = (
         decisions["manual_decision"].fillna("").astype(str).str.strip().str.lower()
     )
-    decisions["applied_at"] = decisions["applied_at"].fillna("").astype(str)
+    original_dates = decisions[MANUAL_DECISION_DATE_COLUMNS].copy()
+
+    for column in MANUAL_DECISION_DATE_COLUMNS:
+        decisions[column] = decisions[column].map(to_yyyy_mm_dd)
+
     mask = (
         decisions["news_id"].isin(applied_news_ids)
         & decisions["manual_decision"].isin(["keep", "reject"])
@@ -703,6 +716,8 @@ def _update_manual_decisions_applied_at(
 
     if mask.any():
         decisions.loc[mask, "applied_at"] = applied_at
+
+    if mask.any() or not decisions[MANUAL_DECISION_DATE_COLUMNS].equals(original_dates):
         atomic_write_csv(decisions, path, MANUAL_DECISION_COLUMNS)
 
 
@@ -715,7 +730,7 @@ def _apply_review_decisions() -> int:
         print("No manual review decisions to apply.")
         return 0
 
-    applied_at = now_utc_iso()
+    applied_at = utc_today_yyyy_mm_dd()
     keep_history = read_csv_safe(HISTORY_FILE, NEWS_COLUMNS)
     review = read_csv_safe(REVIEW_FILE, REVIEW_COLUMNS)
     reject_log = read_csv_safe(REJECT_FILE, REJECT_COLUMNS)
