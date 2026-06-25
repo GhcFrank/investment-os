@@ -1,0 +1,9 @@
+keyword,reason,weight,enabled
+job opening,non research content,-8,true
+career opportunity,non research content,-8,true
+sponsored webinar,promotional content,-4,true
+sponsored content,promotional content,-4,true
+register now,event promotion,-3,true
+upcoming webinar,event promotion,-3,true
+consumer wearable,outside current scope,-4,true
+automotive infotainment,outside current scope,-4,true

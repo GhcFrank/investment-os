@@ -1,0 +1,11 @@
+news_id,manual_decision,manual_notes,reviewed_at,applied_at
+semiengineering_24277679,reject,"reason=not important; note:modeling GPU traffic is only a methodology for reseath, has no impact on AI itself",2026-06-20,
+semiengineering_24277648,keep,"reason=strong business sense; note:wifi7/8 are good business scenario for AI usage, worth tracking",2026-06-20,
+semiengineering_24277643,reject,"reason=outside_scope; note=automotive CAN timing, weak relevance to AI infrastructure",2026-06-20,
+semiengineering_24277643,keep,"reason=weekly news; note=weekly contains may contain both technology update and business announcement, always worth tracking",2026-06-20,
+semiengineering_24277553,keep,"reason=high correlated topic;note=important info about packaging",2026-06-25,
+semiengineering_24277574,keep,"reason=business sense; note: topic related to memory performance, should keep no matter if business sense is strong or not",2026-06-25,
+semiengineering_24277442,reject,"reason=tech white paper; too many noise; note=no need tech white paper, focus more on the business side",2026-06-25,
+semiengineering_24277499,keep,"reason=business sense; note: business sense on PICe",2026-06-25,
+semiengineering_24277387,reject,"reason=outside scope; note: irrelevant topic",2026-06-25,
+semiengineering_24277410,reject,"reason=tech white paper; too many noise; note=no need tech white paper",2026-06-25,

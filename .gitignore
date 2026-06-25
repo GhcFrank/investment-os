@@ -10,6 +10,8 @@ myInvestmentEnv/
 
 # Generated data
 data/market_data/fundamentals.csv
+data/news/raw/*
+!data/news/raw/.gitkeep
 
 # macOS
 .DS_Store

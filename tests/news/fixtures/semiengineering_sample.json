@@ -1,0 +1,81 @@
+{
+  "source_id": "semiengineering",
+  "fetched_at": "2026-06-14T12:40:56Z",
+  "window_start": "2026-05-15T12:40:56Z",
+  "window_end": "2026-06-14T12:40:56Z",
+  "api_endpoint": "https://semiengineering.com/wp-json/wp/v2/posts",
+  "total_pages": 1,
+  "total_items": 5,
+  "posts": [
+    {
+      "id": 1001,
+      "date": "2026-06-14T08:00:00",
+      "date_gmt": "2026-06-14T12:00:00",
+      "modified": "2026-06-14T08:15:00",
+      "modified_gmt": "2026-06-14T12:15:00",
+      "slug": "megawatt-racks-data-centers",
+      "link": "https://semiengineering.com/megawatt-racks-data-centers/",
+      "title": {"rendered": "1 Megawatt Racks In Data Centers"},
+      "excerpt": {"rendered": "Power delivery and cooling change at rack scale."},
+      "author": 7,
+      "categories": [11],
+      "tags": [101, 102]
+    },
+    {
+      "id": 1002,
+      "date": "2026-06-13T08:00:00",
+      "date_gmt": "2026-06-13T12:00:00",
+      "modified": "2026-06-13T08:10:00",
+      "modified_gmt": "2026-06-13T12:10:00",
+      "slug": "data-movement-bottlenecks",
+      "link": "https://semiengineering.com/data-movement-bottlenecks/",
+      "title": {"rendered": "Overcoming Bottlenecks In Data Movement"},
+      "excerpt": {"rendered": "AI accelerators expose memory bottlenecks and interconnect options."},
+      "author": 7,
+      "categories": [11],
+      "tags": [103, 104]
+    },
+    {
+      "id": 1003,
+      "date": "2026-06-12T08:00:00",
+      "date_gmt": "2026-06-12T12:00:00",
+      "modified": "2026-06-12T08:10:00",
+      "modified_gmt": "2026-06-12T12:10:00",
+      "slug": "low-temp-solders-chiplets-photonics",
+      "link": "https://semiengineering.com/low-temp-solders-chiplets-photonics/",
+      "title": {"rendered": "Low-Temp Solders Are Suddenly Critical For Chiplets And Photonics"},
+      "excerpt": {"rendered": "Hybrid bonding and heterogeneous integration are changing package flows."},
+      "author": 7,
+      "categories": [12],
+      "tags": [105, 106]
+    },
+    {
+      "id": 1004,
+      "date": "2026-06-11T08:00:00",
+      "date_gmt": "2026-06-11T12:00:00",
+      "modified": "2026-06-11T08:10:00",
+      "modified_gmt": "2026-06-11T12:10:00",
+      "slug": "gpu-energy-efficiency",
+      "link": "https://semiengineering.com/gpu-energy-efficiency/",
+      "title": {"rendered": "Improving GPU Energy Efficiency With Component-Level Power Management"},
+      "excerpt": {"rendered": "Component level power management affects AI data center power density."},
+      "author": 7,
+      "categories": [11],
+      "tags": [107]
+    },
+    {
+      "id": 1005,
+      "date": "2026-06-10T08:00:00",
+      "date_gmt": "2026-06-10T12:00:00",
+      "modified": "2026-06-10T08:10:00",
+      "modified_gmt": "2026-06-10T12:10:00",
+      "slug": "week-in-review",
+      "link": "https://semiengineering.com/week-in-review/",
+      "title": {"rendered": "Week In Review: Manufacturing, Test"},
+      "excerpt": {"rendered": "A roundup of semiconductor manufacturing and test news."},
+      "author": 7,
+      "categories": [13],
+      "tags": [108]
+    }
+  ]
+}
