@@ -45712,3 +45712,56 @@ term_id,name,slug,count,updated_at
 69094,inter-GPU communication,inter-gpu-communication,1,2026-06-16T01:56:54Z
 69095,peer-to-peer GPU writes,peer-to-peer-gpu-writes,1,2026-06-16T01:56:54Z
 69096,SyncMon,syncmon,1,2026-06-16T01:56:54Z
+69109,18A,18a,2,2026-06-25T21:16:36Z
+69114,MLPerf Training,mlperf-training,1,2026-06-25T21:16:36Z
+69115,Pictorus,pictorus,1,2026-06-25T21:16:36Z
+69116,Murata Manufacturing,murata-manufacturing,1,2026-06-25T21:16:36Z
+69118,Hydra Host,hydra-host,1,2026-06-25T21:16:36Z
+69119,Architect Labs,architect-labs,1,2026-06-25T21:16:36Z
+69122,Planck Dynamics,planck-dynamics,1,2026-06-25T21:16:36Z
+69127,QIA,qia,1,2026-06-25T21:16:36Z
+69128,Heraeus Epurio,heraeus-epurio,1,2026-06-25T21:16:36Z
+69130,Neura Defense Systems,neura-defense-systems,1,2026-06-25T21:16:36Z
+69131,Danfoss Power Solutions,danfoss-power-solutions,1,2026-06-25T21:16:36Z
+69132,Mask Technology,mask-technology,1,2026-06-25T21:16:36Z
+69133,Futurewei,futurewei,1,2026-06-25T21:16:36Z
+69134,LLM4RTL,llm4rtl,1,2026-06-25T21:16:36Z
+69135,VerilogEval,verilogeval,1,2026-06-25T21:16:36Z
+69136,AI for chip design,ai-for-chip-design,1,2026-06-25T21:16:36Z
+69137,MIPSBLEED,mipsbleed,1,2026-06-25T21:16:36Z
+69138,L1 data cache,l1-data-cache,1,2026-06-25T21:16:36Z
+69139,L1 instruction cache,l1-instruction-cache,1,2026-06-25T21:16:36Z
+69140,execution engine,execution-engine,1,2026-06-25T21:16:36Z
+69141,ARES 2026,ares-2026,1,2026-06-25T21:16:36Z
+69142,fab control,fab-control,1,2026-06-25T21:16:36Z
+69143,production planning,production-planning,1,2026-06-25T21:16:36Z
+69144,equipment utilization,equipment-utilization,1,2026-06-25T21:16:36Z
+69145,discrete-event systems,discrete-event-systems,1,2026-06-25T21:16:36Z
+69146,AI for manufacturing,ai-for-manufacturing,1,2026-06-25T21:16:36Z
+69147,hierarchical memory management,hierarchical-memory-management,1,2026-06-25T21:16:36Z
+69149,The Ohio State University,the-ohio-state-university,1,2026-06-25T21:16:36Z
+69150,ultrawide-bandgap semiconductors,ultrawide-bandgap-semiconductors,1,2026-06-25T21:16:36Z
+69152,Si doping,si-doping,1,2026-06-25T21:16:36Z
+69153,phase transformation,phase-transformation,1,2026-06-25T21:16:36Z
+69155,cation vacancies,cation-vacancies,1,2026-06-25T21:16:36Z
+69156,PuDGhost,pudghost,1,2026-06-25T21:16:36Z
+69157,ISCA 2026,isca-2026,1,2026-06-25T21:16:36Z
+69158,atomic-scale control,atomic-scale-control,1,2026-06-25T21:16:36Z
+69159,high-aspect-ratio structures,high-aspect-ratio-structures,1,2026-06-25T21:16:36Z
+69160,dry etching,dry-etching,1,2026-06-25T21:16:36Z
+69161,plasma-based ALP,plasma-based-alp,1,2026-06-25T21:16:36Z
+69164,repeater mode,repeater-mode,1,2026-06-25T21:16:36Z
+69165,eUSB,eusb,1,2026-06-25T21:16:36Z
+69166,incompatible standards,incompatible-standards,1,2026-06-25T21:16:36Z
+69167,curvilinear photomask,curvilinear-photomask,1,2026-06-25T21:16:36Z
+69168,vector-based site,vector-based-site,1,2026-06-25T21:16:36Z
+69169,anchor decoupling,anchor-decoupling,1,2026-06-25T21:16:36Z
+69170,eye diagrams,eye-diagrams,1,2026-06-25T21:16:36Z
+69171,channel loss,channel-loss,1,2026-06-25T21:16:36Z
+69172,interface design,interface-design,1,2026-06-25T21:16:36Z
+69173,automating interface design,automating-interface-design,1,2026-06-25T21:16:36Z
+69174,Continuous Physics Reasoning,continuous-physics-reasoning,1,2026-06-25T21:16:36Z
+69175,physics foundation,physics-foundation,1,2026-06-25T21:16:36Z
+69176,AI verification,ai-verification,1,2026-06-25T21:16:36Z
+69177,ESDA Alliance,esda-alliance,1,2026-06-25T21:16:36Z
+69178,test plan,test-plan,1,2026-06-25T21:16:36Z
