@@ -10,26 +10,31 @@ run_daily_pipeline.py
    -> src/market_data/update_prices.py
    -> 输出 data/market_data/prices.csv
 
-2. 计算板块强度
+2. 更新市场情绪指标
+   -> src/market_data/update_sentiment_indicators.py
+   -> 输出 data/market_data/vix.csv
+   -> 输出 data/market_data/cnn_fear_greed.csv
+
+3. 计算板块强度
    -> src/signals/build_sector_strength.py
    -> 输出 data/signals/sector_strength.csv
    -> 更新 data/signals/sector_strength_history.csv
 
-3. 生成每日市场信号
+4. 生成每日市场信号
    -> src/signals/daily_market_monitor.py
    -> 输出 data/signals/daily_market_signals.csv
 
-4. 检查明天是否有财报
+5. 检查明天是否有财报
    -> src/events/check_earnings_calendar.py
    -> 如果命中，发送邮件提醒
    -> 更新 data/events/earnings_alert_history.csv
 
-5. 检查 SEC EDGAR 重要 filing
+6. 检查 SEC EDGAR 重要 filing
    -> src/events/check_sec_filings.py
    -> 如果发现新 filing，发送邮件提醒
    -> 更新 data/events/sec_filings.csv
 
-6. 更新 Polymarket earnings 预测数据
+7. 更新 Polymarket earnings 预测数据
    -> src/prediction_markets/update_polymarket_earnings_markets.py
    -> src/prediction_markets/match_polymarket_earnings.py
    -> src/prediction_markets/update_polymarket_predictions.py
@@ -62,6 +67,7 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from utils.send_email import send_email
+from market_data.sentiment_summary import build_sentiment_email_section
 
 
 def run_script(script_path: Path) -> None:
@@ -118,6 +124,7 @@ def main() -> None:
 
     scripts = [
         BASE_DIR / "src" / "market_data" / "update_prices.py",
+        BASE_DIR / "src" / "market_data" / "update_sentiment_indicators.py",
         BASE_DIR / "src" / "signals" / "build_sector_strength.py",
         BASE_DIR / "src" / "signals" / "daily_market_monitor.py",
         BASE_DIR / "src" / "events" / "check_earnings_calendar.py",
@@ -138,6 +145,9 @@ def main() -> None:
 
     print("\nDaily pipeline completed successfully.")
     print(f"End time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+
+    sentiment_section = build_sentiment_email_section()
+
     # 发送完成通知邮件。
     # 这里复用 src/utils/send_email.py 里的 send_email 函数。
     send_email(
@@ -145,9 +155,15 @@ def main() -> None:
         body=(
             "Daily pipeline completed successfully.\n\n"
             f"Run time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+            f"{sentiment_section}\n\n"
             "Generated files:\n"
             "- data/market_data/prices.csv\n"
             "- data/market_data/prices_history.csv\n"
+            "- data/market_data/vix.csv\n"
+            "- data/market_data/vix_history.csv\n"
+            "- data/market_data/cnn_fear_greed.csv\n"
+            "- data/market_data/cnn_fear_greed_history.csv\n"
+            "- data/market_data/sentiment_fetch_log.csv\n"
             "- data/signals/sector_strength.csv\n"
             "- data/signals/sector_strength_history.csv\n"
             "- data/signals/daily_market_signals.csv\n"

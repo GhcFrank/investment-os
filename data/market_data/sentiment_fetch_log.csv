@@ -1,0 +1,3 @@
+run_at,status,vix_status,cnn_status,rows_written,error_message
+2026-06-26T19:44:07Z,success,ok,failed,2,
+2026-06-26T20:01:46Z,success,ok,failed,2,CNN Fear & Greed unavailable: HTTP 418 from CNN graphdata endpoint
