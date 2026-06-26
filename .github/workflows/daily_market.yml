@@ -36,6 +36,7 @@ jobs:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
           EMAIL_TO: ${{ secrets.EMAIL_TO }}
+          SENTIMENT_USER_AGENT: InvestmentOS-SentimentBot/1.0
           # Example secret value format: InvestmentOS contact@example.com
           SEC_USER_AGENT: ${{ secrets.SEC_USER_AGENT }}
 
@@ -46,6 +47,9 @@ jobs:
 
           git add data/market_data/prices.csv
           git add data/market_data/prices_history.csv
+          git add data/market_data/sentiment_indicators.csv
+          git add data/market_data/sentiment_indicator_history.csv
+          git add data/market_data/sentiment_fetch_log.csv
           git add data/signals/sector_strength.csv
           git add data/signals/sector_strength_history.csv
           git add data/signals/daily_market_signals.csv
