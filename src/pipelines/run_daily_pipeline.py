@@ -12,7 +12,8 @@ run_daily_pipeline.py
 
 2. 更新市场情绪指标
    -> src/market_data/update_sentiment_indicators.py
-   -> 输出 data/market_data/sentiment_indicators.csv
+   -> 输出 data/market_data/vix.csv
+   -> 输出 data/market_data/cnn_fear_greed.csv
 
 3. 计算板块强度
    -> src/signals/build_sector_strength.py
@@ -158,8 +159,10 @@ def main() -> None:
             "Generated files:\n"
             "- data/market_data/prices.csv\n"
             "- data/market_data/prices_history.csv\n"
-            "- data/market_data/sentiment_indicators.csv\n"
-            "- data/market_data/sentiment_indicator_history.csv\n"
+            "- data/market_data/vix.csv\n"
+            "- data/market_data/vix_history.csv\n"
+            "- data/market_data/cnn_fear_greed.csv\n"
+            "- data/market_data/cnn_fear_greed_history.csv\n"
             "- data/market_data/sentiment_fetch_log.csv\n"
             "- data/signals/sector_strength.csv\n"
             "- data/signals/sector_strength_history.csv\n"

@@ -55,8 +55,7 @@ class CnnFetchTests(unittest.TestCase):
             }
         )
 
-        self.assertEqual(row["indicator"], "CNN_FEAR_GREED")
-        self.assertEqual(row["value"], "42.00")
+        self.assertEqual(row["fear_greed_index"], "42.00")
         self.assertEqual(row["level"], "fear")
         self.assertEqual(row["status"], "ok")
 
@@ -71,76 +70,136 @@ class CnnFetchTests(unittest.TestCase):
         ):
             row = sentiment.fetch_cnn_fear_greed()
 
-        self.assertEqual(row["indicator"], "CNN_FEAR_GREED")
         self.assertEqual(row["status"], "failed")
-        self.assertEqual(row["value"], "")
-        self.assertIn("HTTP 403", row["error_message"])
-        self.assertIn("bad json", row["error_message"])
+        self.assertEqual(row["fear_greed_index"], "")
+        self.assertEqual(
+            row["error_message"],
+            "CNN Fear & Greed unavailable: HTTP 403 from CNN graphdata endpoint",
+        )
+
+    def test_cnn_418_error_is_shortened(self):
+        message = sentiment.summarize_cnn_error(
+            "https://example.test/path: 418 Client Error: Unknown Error"
+        )
+
+        self.assertEqual(
+            message,
+            "CNN Fear & Greed unavailable: HTTP 418 from CNN graphdata endpoint",
+        )
+        self.assertLessEqual(len(message), 160)
 
 
 class SentimentCsvTests(unittest.TestCase):
-    def test_history_upsert_replaces_date_indicator(self):
+    def test_vix_output_schema(self):
+        row = sentiment.vix_row(
+            date="2026-06-25",
+            value=18,
+            level="normal",
+        )
+        rows = pd.DataFrame([row], columns=sentiment.VIX_COLUMNS)
+
+        self.assertEqual(list(rows.columns), sentiment.VIX_COLUMNS)
+
+    def test_cnn_output_schema(self):
+        row = sentiment.cnn_row(
+            date="2026-06-25",
+            value=42,
+            level="fear",
+        )
+        rows = pd.DataFrame([row], columns=sentiment.CNN_COLUMNS)
+
+        self.assertEqual(list(rows.columns), sentiment.CNN_COLUMNS)
+
+    def test_vix_history_upsert_replaces_date(self):
         existing = pd.DataFrame(
             [
-                sentiment.sentiment_row(
+                sentiment.vix_row(
                     date="2026-06-25",
-                    indicator="VIX",
                     value=18,
                     level="normal",
-                    source="yfinance",
-                    status="ok",
                 )
             ],
-            columns=sentiment.SENTIMENT_COLUMNS,
+            columns=sentiment.VIX_COLUMNS,
         )
         replacement = pd.DataFrame(
             [
-                sentiment.sentiment_row(
+                sentiment.vix_row(
                     date="2026-06-25",
-                    indicator="VIX",
                     value=19,
                     level="normal",
-                    source="yfinance",
-                    status="ok",
                 )
             ],
-            columns=sentiment.SENTIMENT_COLUMNS,
+            columns=sentiment.VIX_COLUMNS,
         )
 
-        history = sentiment.upsert_history(existing, replacement)
+        history = sentiment.upsert_history(
+            existing,
+            replacement,
+            sentiment.VIX_COLUMNS,
+        )
 
         self.assertEqual(len(history), 1)
-        self.assertEqual(history.loc[0, "value"], "19.00")
+        self.assertEqual(history.loc[0, "vix"], "19.00")
+
+    def test_cnn_history_upsert_replaces_date(self):
+        existing = pd.DataFrame(
+            [
+                sentiment.cnn_row(
+                    date="2026-06-25",
+                    value=41,
+                    level="fear",
+                )
+            ],
+            columns=sentiment.CNN_COLUMNS,
+        )
+        replacement = pd.DataFrame(
+            [
+                sentiment.cnn_row(
+                    date="2026-06-25",
+                    value=42,
+                    level="fear",
+                )
+            ],
+            columns=sentiment.CNN_COLUMNS,
+        )
+
+        history = sentiment.upsert_history(
+            existing,
+            replacement,
+            sentiment.CNN_COLUMNS,
+        )
+
+        self.assertEqual(len(history), 1)
+        self.assertEqual(history.loc[0, "fear_greed_index"], "42.00")
 
     def test_change_calculation_uses_observations(self):
         historical_rows = []
         for index in range(1, 22):
             historical_rows.append(
-                sentiment.sentiment_row(
+                sentiment.vix_row(
                     date=f"2026-06-{index:02d}",
-                    indicator="VIX",
                     value=10 + index,
                     level="normal",
-                    source="yfinance",
-                    status="ok",
                 )
             )
-        history = pd.DataFrame(historical_rows, columns=sentiment.SENTIMENT_COLUMNS)
+        history = pd.DataFrame(historical_rows, columns=sentiment.VIX_COLUMNS)
         rows = pd.DataFrame(
             [
-                sentiment.sentiment_row(
+                sentiment.vix_row(
                     date="2026-06-22",
-                    indicator="VIX",
                     value=40,
                     level="stress",
-                    source="yfinance",
-                    status="ok",
                 )
             ],
-            columns=sentiment.SENTIMENT_COLUMNS,
+            columns=sentiment.VIX_COLUMNS,
         )
 
-        changed = sentiment.add_change_columns(rows, history)
+        changed = sentiment.add_change_columns(
+            rows,
+            history,
+            "vix",
+            sentiment.VIX_COLUMNS,
+        )
 
         self.assertEqual(changed.loc[0, "change_1d"], "9.00")
         self.assertEqual(changed.loc[0, "change_5d"], "13.00")
@@ -148,33 +207,33 @@ class SentimentCsvTests(unittest.TestCase):
 
 
 class SentimentEmailSectionTests(unittest.TestCase):
-    def test_email_section_includes_vix_and_cnn(self):
+    def test_email_section_reads_split_files(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "sentiment.csv"
-            rows = pd.DataFrame(
+            tmp_path = Path(tmp)
+            vix_file = tmp_path / "vix.csv"
+            cnn_file = tmp_path / "cnn_fear_greed.csv"
+            pd.DataFrame(
                 [
-                    sentiment.sentiment_row(
+                    sentiment.vix_row(
                         date="2026-06-25",
-                        indicator="VIX",
                         value=18.42,
                         level="normal",
-                        source="yfinance",
-                        status="ok",
-                    ),
-                    sentiment.sentiment_row(
+                    )
+                ],
+                columns=sentiment.VIX_COLUMNS,
+            ).to_csv(vix_file, index=False)
+            pd.DataFrame(
+                [
+                    sentiment.cnn_row(
                         date="2026-06-25",
-                        indicator="CNN_FEAR_GREED",
                         value=42,
                         level="fear",
-                        source="cnn_unofficial",
-                        status="ok",
-                    ),
+                    )
                 ],
-                columns=sentiment.SENTIMENT_COLUMNS,
-            )
-            rows.to_csv(path, index=False)
+                columns=sentiment.CNN_COLUMNS,
+            ).to_csv(cnn_file, index=False)
 
-            section = build_sentiment_email_section(path)
+            section = build_sentiment_email_section(vix_file, cnn_file)
 
         self.assertIn("Market Sentiment", section)
         self.assertIn("VIX: 18.42 (normal)", section)
@@ -182,28 +241,28 @@ class SentimentEmailSectionTests(unittest.TestCase):
 
     def test_email_section_includes_unavailable_cnn(self):
         with tempfile.TemporaryDirectory() as tmp:
-            path = Path(tmp) / "sentiment.csv"
-            rows = pd.DataFrame(
+            tmp_path = Path(tmp)
+            vix_file = tmp_path / "vix.csv"
+            cnn_file = tmp_path / "cnn_fear_greed.csv"
+            pd.DataFrame(
                 [
-                    sentiment.sentiment_row(
+                    sentiment.vix_row(
                         date="2026-06-25",
-                        indicator="VIX",
                         value=18.42,
                         level="normal",
-                        source="yfinance",
-                        status="ok",
-                    ),
-                    sentiment.failed_cnn_row("HTTP 403"),
+                    )
                 ],
-                columns=sentiment.SENTIMENT_COLUMNS,
-            )
-            rows.to_csv(path, index=False)
+                columns=sentiment.VIX_COLUMNS,
+            ).to_csv(vix_file, index=False)
+            pd.DataFrame(
+                [sentiment.failed_cnn_row("418 Client Error")],
+                columns=sentiment.CNN_COLUMNS,
+            ).to_csv(cnn_file, index=False)
 
-            section = build_sentiment_email_section(path)
+            section = build_sentiment_email_section(vix_file, cnn_file)
 
         self.assertIn("CNN Fear & Greed: unavailable", section)
-        self.assertIn("- status: failed", section)
-        self.assertIn("- error: HTTP 403", section)
+        self.assertIn("HTTP 418", section)
 
 
 if __name__ == "__main__":
