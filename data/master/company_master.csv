@@ -30,3 +30,22 @@ ORCL,Oracle,Technology,Enterprise Software,AI Infrastructure,NeoCloud,AI Cloud,8
 KEYS,Keysight Technologies,Technology,Electronic Test & Measurement,AI Infrastructure,Optical Test & Metrology,R&D Test & Standards,9
 FORM,FormFactor,Technology,Semiconductor Test Equipment,AI Infrastructure,Optical Test & Metrology,Wafer-Level Test & Probing,8
 AEHR,Aehr Test Systems,Technology,Semiconductor Test Equipment,AI Infrastructure,Optical Test & Metrology,Wafer & Package Burn-In,6
+DELL,Dell Technologies,Technology,AI Server & Storage,AI Infrastructure,AI Servers,Systems & Storage,7
+CLS,Celestica,Technology,Electronics Manufacturing Services,AI Infrastructure,AI Servers,Contract Manufacturing,7
+IREN,IREN Limited,Technology,AI Data Center & Bitcoin Mining,AI Infrastructure,NeoCloud,AI Cloud & Power Infrastructure,5
+APH,Amphenol,Technology,Interconnect Components,AI Infrastructure,Connectivity,Connectors & Cables,8
+GLW,Corning,Technology,Optical Fiber & Materials,AI Infrastructure,Optical,Optical Fiber & Materials,7
+CIEN,Ciena,Technology,Optical Networking Equipment,AI Infrastructure,Optical,Connectivity,7
+STX,Seagate Technology,Technology,Storage Hardware,AI Infrastructure,Storage,HDD Storage,6
+STRL,Sterling Infrastructure,Industrials,Infrastructure Construction,AI Infrastructure,Data Center Construction,Construction & Site Infrastructure,6
+EQIX,Equinix,Real Estate,Data Center REIT,AI Infrastructure,Data Centers,Colocation & Interconnection,8
+NET,Cloudflare,Technology,Edge Cloud & Security,Software,Edge Cloud & Security,SaaS & Edge Network,8
+NOW,ServiceNow,Technology,Enterprise Software,Software,Workflow Automation,SaaS,9
+SNOW,Snowflake,Technology,Data Cloud Software,Software,Data Cloud,SaaS,8
+APP,AppLovin,Technology,AdTech Software,Software,AdTech & AI Applications,Application Software,8
+CRWD,CrowdStrike,Technology,Cybersecurity Software,Software,Cybersecurity,SaaS,8
+FLNC,Fluence Energy,Industrials,Energy Storage,AI Infrastructure,Energy Storage,Grid Storage,6
+BE,Bloom Energy,Industrials,Fuel Cells & Distributed Power,AI Infrastructure,Power,On-site Power Generation,6
+KLAC,KLA,Technology,Semicap Equipment,AI Infrastructure,Equipment,Process Control & Metrology,9
+RMBS,Rambus,Technology,Semiconductor IP,AI Infrastructure,Memory Interface,Memory & IP,7
+LITE,Lumentum,Technology,Optical Components,AI Infrastructure,Optical,Connectivity,6
