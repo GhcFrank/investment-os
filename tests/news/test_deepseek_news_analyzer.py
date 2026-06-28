@@ -1,6 +1,7 @@
 import argparse
 import io
 import json
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -17,6 +18,7 @@ from news.deepseek_news_analyzer import (
     build_news_analysis_prompt,
     is_retryable_deepseek_error,
     load_company_universe,
+    load_deepseek_config,
     normalize_analysis_result,
     parse_deepseek_json_response,
     summarize_deepseek_error,
@@ -30,7 +32,7 @@ CONFIG = {
     "prompt_version": "deepseek_news_v1",
     "analysis_limit": 20,
     "max_input_chars": 6000,
-    "max_output_tokens": 800,
+    "max_output_tokens": 1500,
     "temperature": 0.1,
     "max_retries": 2,
     "retry_sleep_seconds": 0,
@@ -202,6 +204,16 @@ class DeepSeekAnalyzerTests(unittest.TestCase):
         self.assertIn("Supported company universe", user_message)
         self.assertIn("ANET | Arista Networks", user_message)
 
+    def test_prompt_includes_json_instructions(self):
+        messages = build_news_analysis_prompt(article=article(), max_input_chars=1000)
+        combined = "\n".join(message["content"] for message in messages)
+
+        self.assertIn("JSON", combined)
+        self.assertIn("Return JSON only", combined)
+        self.assertIn("Output a single valid JSON object", combined)
+        self.assertIn("Do not wrap the JSON in Markdown", combined)
+        self.assertIn("Do not include commentary outside the JSON object", combined)
+
     def test_prompt_does_not_truncate_json_schema(self):
         company_universe = [
             "ANET | Arista Networks | AI Infrastructure | Networking | Connectivity",
@@ -271,6 +283,35 @@ class DeepSeekAnalyzerTests(unittest.TestCase):
         self.assertEqual(result["status"], "ok")
         self.assertEqual(client.chat.completions.create.call_count, 2)
         self.assertEqual(result["error_message"], "")
+
+    def test_analyze_passes_json_response_format(self):
+        company_universe = [
+            "ANET | Arista Networks | AI Infrastructure | Networking | Connectivity",
+        ]
+        client = Mock()
+        client.chat.completions.create.return_value = response_with_content(
+            json.dumps(raw_result())
+        )
+
+        with patch("news.deepseek_news_analyzer.OpenAI", return_value=client):
+            result = analyze_article_with_deepseek(
+                article=article(),
+                config=CONFIG,
+                company_universe=company_universe,
+            )
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(
+            client.chat.completions.create.call_args.kwargs["response_format"],
+            {"type": "json_object"},
+        )
+
+    def test_default_max_output_tokens_is_1500(self):
+        with patch("news.deepseek_news_analyzer.load_dotenv"):
+            with patch.dict(os.environ, {"DEEPSEEK_API_KEY": "test-key"}, clear=True):
+                config = load_deepseek_config()
+
+        self.assertEqual(config["max_output_tokens"], 1500)
 
     def test_analyze_stops_after_max_retries(self):
         client = Mock()

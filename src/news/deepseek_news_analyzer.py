@@ -90,7 +90,7 @@ def load_deepseek_config() -> dict:
         ).strip(),
         "analysis_limit": _env_int("DEEPSEEK_NEWS_ANALYSIS_LIMIT", 20),
         "max_input_chars": _env_int("DEEPSEEK_MAX_INPUT_CHARS", 6000),
-        "max_output_tokens": _env_int("DEEPSEEK_MAX_OUTPUT_TOKENS", 800),
+        "max_output_tokens": _env_int("DEEPSEEK_MAX_OUTPUT_TOKENS", 1500),
         "temperature": _env_float("DEEPSEEK_TEMPERATURE", 0.1),
         "max_retries": _env_int("DEEPSEEK_MAX_RETRIES", 2, minimum=0),
         "retry_sleep_seconds": _env_float(
@@ -115,7 +115,7 @@ def load_deepseek_runtime_defaults() -> dict:
         ).strip(),
         "analysis_limit": _env_int("DEEPSEEK_NEWS_ANALYSIS_LIMIT", 20),
         "max_input_chars": _env_int("DEEPSEEK_MAX_INPUT_CHARS", 6000),
-        "max_output_tokens": _env_int("DEEPSEEK_MAX_OUTPUT_TOKENS", 800),
+        "max_output_tokens": _env_int("DEEPSEEK_MAX_OUTPUT_TOKENS", 1500),
         "temperature": _env_float("DEEPSEEK_TEMPERATURE", 0.1),
         "max_retries": _env_int("DEEPSEEK_MAX_RETRIES", 2, minimum=0),
         "retry_sleep_seconds": _env_float(
@@ -241,6 +241,9 @@ def build_news_analysis_prompt(
     article_context_block = build_article_context(article, max_input_chars)
     output_schema_block = (
         "Return JSON only. Do not include Markdown or commentary.\n"
+        "Output a single valid JSON object.\n"
+        "Do not wrap the JSON in Markdown.\n"
+        "Do not include commentary outside the JSON object.\n"
         "Allowed impact_direction values: positive, negative, mixed, neutral, unclear.\n"
         "Allowed signal_type values: demand, supply, capex, product, competition, "
         "customer, regulation, macro, earnings, financing, noise.\n"
@@ -366,8 +369,9 @@ def analyze_article_with_deepseek(
             response = client.chat.completions.create(
                 model=config.get("model", "deepseek-v4-flash"),
                 messages=messages,
-                max_tokens=int(config.get("max_output_tokens", 800) or 800),
+                max_tokens=int(config.get("max_output_tokens", 1500) or 1500),
                 temperature=float(config.get("temperature", 0.1) or 0.1),
+                response_format={"type": "json_object"},
             )
             content = _extract_response_content(response)
             parsed = parse_deepseek_json_response(content)

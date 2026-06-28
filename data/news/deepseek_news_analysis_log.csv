@@ -2,3 +2,4 @@ run_at,status,articles_seen,articles_analyzed,articles_skipped,articles_failed,m
 2026-06-28T20:02:33Z,partial_failed,19,3,0,2,deepseek-v4-flash,deepseek_news_v1,
 2026-06-28T20:34:51Z,partial_failed,19,5,1,2,deepseek-v4-flash,deepseek_news_v1,
 2026-06-28T21:06:29Z,partial_failed,19,3,4,2,deepseek-v4-flash,deepseek_news_v1,
+2026-06-28T21:36:22Z,ok,19,5,0,0,deepseek-v4-flash,deepseek_news_json_mode_v1,
