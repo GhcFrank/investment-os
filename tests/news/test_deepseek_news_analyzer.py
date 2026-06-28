@@ -1,15 +1,20 @@
 import argparse
+import io
 import json
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import pandas as pd
 
 from news import analyze_news_with_deepseek as cli
 from news.deepseek_news_analyzer import (
     ANALYSIS_COLUMNS,
+    analyze_article_with_deepseek,
+    is_retryable_deepseek_error,
     normalize_analysis_result,
     parse_deepseek_json_response,
     summarize_deepseek_error,
@@ -25,6 +30,8 @@ CONFIG = {
     "max_input_chars": 6000,
     "max_output_tokens": 800,
     "temperature": 0.1,
+    "max_retries": 2,
+    "retry_sleep_seconds": 0,
 }
 
 
@@ -58,6 +65,29 @@ def raw_result() -> dict:
         "follow_up_questions": ["What customers are buying?", "What changes in capex?"],
         "confidence": 4,
     }
+
+
+def failed_result(news_id: str = "news_1") -> dict:
+    return normalize_analysis_result(
+        article=article(news_id),
+        raw_result={},
+        config=CONFIG,
+        status="failed",
+        error_message="empty_response",
+        input_chars=100,
+        output_chars=0,
+    )
+
+
+def response_with_content(content: str | None):
+    return SimpleNamespace(
+        choices=[
+            SimpleNamespace(
+                message=SimpleNamespace(content=content),
+            )
+        ],
+        usage=SimpleNamespace(prompt_tokens=10, completion_tokens=20),
+    )
 
 
 def write_input(path: Path, rows: list[dict[str, str]]) -> None:
@@ -109,9 +139,57 @@ class DeepSeekAnalyzerTests(unittest.TestCase):
 
         self.assertEqual(message, "DeepSeek API balance is insufficient")
 
+    def test_empty_response_is_retryable(self):
+        self.assertTrue(is_retryable_deepseek_error("empty_response"))
+
+    def test_429_is_retryable(self):
+        self.assertTrue(
+            is_retryable_deepseek_error("DeepSeek API rate limit exceeded")
+        )
+
+    def test_402_is_not_retryable(self):
+        self.assertFalse(
+            is_retryable_deepseek_error("DeepSeek API balance is insufficient")
+        )
+
+    def test_analyze_retries_empty_response_then_succeeds(self):
+        client = Mock()
+        client.chat.completions.create.side_effect = [
+            response_with_content(""),
+            response_with_content(json.dumps(raw_result())),
+        ]
+
+        with patch("news.deepseek_news_analyzer.OpenAI", return_value=client):
+            result = analyze_article_with_deepseek(
+                article(),
+                {**CONFIG, "max_retries": 2, "retry_sleep_seconds": 0},
+            )
+
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(client.chat.completions.create.call_count, 2)
+        self.assertEqual(result["error_message"], "")
+
+    def test_analyze_stops_after_max_retries(self):
+        client = Mock()
+        client.chat.completions.create.side_effect = [
+            response_with_content(""),
+            response_with_content(""),
+            response_with_content(""),
+        ]
+
+        with patch("news.deepseek_news_analyzer.OpenAI", return_value=client):
+            result = analyze_article_with_deepseek(
+                article(),
+                {**CONFIG, "max_retries": 2, "retry_sleep_seconds": 0},
+            )
+
+        self.assertEqual(client.chat.completions.create.call_count, 3)
+        self.assertEqual(result["status"], "failed")
+        self.assertEqual(result["error_message"], "empty_response")
+
 
 class DeepSeekCliTests(unittest.TestCase):
-    def test_skip_already_analyzed(self):
+    def test_existing_ok_row_is_skipped_by_default(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
             input_file = tmp_path / "review.csv"
@@ -142,6 +220,39 @@ class DeepSeekCliTests(unittest.TestCase):
             analyze.assert_not_called()
             output = pd.read_csv(output_file, dtype=str)
             self.assertEqual(len(output), 1)
+
+    def test_existing_failed_row_is_retried_by_default(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            input_file = tmp_path / "review.csv"
+            output_file = tmp_path / "analysis.csv"
+            write_input(input_file, [article("news_1")])
+            new = normalize_analysis_result(
+                article=article("news_1"),
+                raw_result=raw_result(),
+                config=CONFIG,
+            )
+            pd.DataFrame([failed_result("news_1")], columns=ANALYSIS_COLUMNS).to_csv(
+                output_file,
+                index=False,
+            )
+
+            with patch.object(cli, "load_deepseek_config", return_value=CONFIG):
+                with patch.object(cli, "load_deepseek_runtime_defaults", return_value=CONFIG):
+                    with patch.object(cli, "analyze_article_with_deepseek", return_value=new) as analyze:
+                        exit_code = cli.run_analysis(
+                            args_for(
+                                tmp_path,
+                                input_file=str(input_file),
+                                output_file=str(output_file),
+                            )
+                        )
+
+            output = pd.read_csv(output_file, dtype=str)
+            self.assertEqual(exit_code, 0)
+            analyze.assert_called_once()
+            self.assertEqual(len(output), 1)
+            self.assertEqual(output.loc[0, "status"], "ok")
 
     def test_force_override(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -178,6 +289,42 @@ class DeepSeekCliTests(unittest.TestCase):
             self.assertEqual(len(output), 1)
             self.assertEqual(output.loc[0, "summary"], "new")
 
+    def test_force_retries_ok_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            input_file = tmp_path / "review.csv"
+            output_file = tmp_path / "analysis.csv"
+            write_input(input_file, [article("news_1")])
+            old = normalize_analysis_result(
+                article=article("news_1"),
+                raw_result=raw_result(),
+                config=CONFIG,
+            )
+            new = normalize_analysis_result(
+                article=article("news_1"),
+                raw_result={**raw_result(), "summary": "forced"},
+                config=CONFIG,
+            )
+            pd.DataFrame([old], columns=ANALYSIS_COLUMNS).to_csv(output_file, index=False)
+
+            with patch.object(cli, "load_deepseek_config", return_value=CONFIG):
+                with patch.object(cli, "load_deepseek_runtime_defaults", return_value=CONFIG):
+                    with patch.object(cli, "analyze_article_with_deepseek", return_value=new) as analyze:
+                        exit_code = cli.run_analysis(
+                            args_for(
+                                tmp_path,
+                                force=True,
+                                input_file=str(input_file),
+                                output_file=str(output_file),
+                            )
+                        )
+
+            output = pd.read_csv(output_file, dtype=str)
+            self.assertEqual(exit_code, 0)
+            analyze.assert_called_once()
+            self.assertEqual(len(output), 1)
+            self.assertEqual(output.loc[0, "summary"], "forced")
+
     def test_dry_run_does_not_call_api_or_write_output(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)
@@ -199,6 +346,43 @@ class DeepSeekCliTests(unittest.TestCase):
             self.assertEqual(exit_code, 0)
             analyze.assert_not_called()
             self.assertFalse(output_file.exists())
+
+    def test_dry_run_shows_previous_failed_retry(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            input_file = tmp_path / "review.csv"
+            output_file = tmp_path / "analysis.csv"
+            write_input(input_file, [article("news_1"), article("news_2")])
+            existing_ok = normalize_analysis_result(
+                article=article("news_2"),
+                raw_result=raw_result(),
+                config=CONFIG,
+            )
+            pd.DataFrame(
+                [failed_result("news_1"), existing_ok],
+                columns=ANALYSIS_COLUMNS,
+            ).to_csv(output_file, index=False)
+
+            stdout = io.StringIO()
+            with patch.object(cli, "load_deepseek_runtime_defaults", return_value=CONFIG):
+                with patch.object(cli, "analyze_article_with_deepseek") as analyze:
+                    with redirect_stdout(stdout):
+                        exit_code = cli.run_analysis(
+                            args_for(
+                                tmp_path,
+                                dry_run=True,
+                                input_file=str(input_file),
+                                output_file=str(output_file),
+                            )
+                        )
+
+            output_text = stdout.getvalue()
+            self.assertEqual(exit_code, 0)
+            analyze.assert_not_called()
+            self.assertIn("To analyze: 1", output_text)
+            self.assertIn("Skipped existing ok: 1", output_text)
+            self.assertIn("Retrying previous failed: 1", output_text)
+            self.assertIn("news_1 | previous failed", output_text)
 
     def test_output_schema(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -226,6 +410,22 @@ class DeepSeekCliTests(unittest.TestCase):
             output = pd.read_csv(output_file, dtype=str)
             self.assertEqual(exit_code, 0)
             self.assertEqual(list(output.columns), ANALYSIS_COLUMNS)
+
+    def test_upsert_prevents_duplicate_key(self):
+        old = failed_result("news_1")
+        new = normalize_analysis_result(
+            article=article("news_1"),
+            raw_result=raw_result(),
+            config=CONFIG,
+        )
+
+        output = cli.upsert_analysis_rows(
+            pd.DataFrame([old], columns=ANALYSIS_COLUMNS),
+            pd.DataFrame([new], columns=ANALYSIS_COLUMNS),
+        )
+
+        self.assertEqual(len(output), 1)
+        self.assertEqual(output.loc[0, "status"], "ok")
 
 
 if __name__ == "__main__":

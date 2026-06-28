@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -88,6 +89,12 @@ def load_deepseek_config() -> dict:
         "max_input_chars": _env_int("DEEPSEEK_MAX_INPUT_CHARS", 6000),
         "max_output_tokens": _env_int("DEEPSEEK_MAX_OUTPUT_TOKENS", 800),
         "temperature": _env_float("DEEPSEEK_TEMPERATURE", 0.1),
+        "max_retries": _env_int("DEEPSEEK_MAX_RETRIES", 2, minimum=0),
+        "retry_sleep_seconds": _env_float(
+            "DEEPSEEK_RETRY_SLEEP_SECONDS",
+            2.0,
+            minimum=0.0,
+        ),
     }
 
 
@@ -107,21 +114,33 @@ def load_deepseek_runtime_defaults() -> dict:
         "max_input_chars": _env_int("DEEPSEEK_MAX_INPUT_CHARS", 6000),
         "max_output_tokens": _env_int("DEEPSEEK_MAX_OUTPUT_TOKENS", 800),
         "temperature": _env_float("DEEPSEEK_TEMPERATURE", 0.1),
+        "max_retries": _env_int("DEEPSEEK_MAX_RETRIES", 2, minimum=0),
+        "retry_sleep_seconds": _env_float(
+            "DEEPSEEK_RETRY_SLEEP_SECONDS",
+            2.0,
+            minimum=0.0,
+        ),
     }
 
 
-def _env_int(name: str, default: int) -> int:
+def _env_int(name: str, default: int, minimum: int | None = None) -> int:
     try:
-        return int(os.getenv(name, str(default)))
+        value = int(os.getenv(name, str(default)))
     except ValueError:
         return default
+    if minimum is not None and value < minimum:
+        return default
+    return value
 
 
-def _env_float(name: str, default: float) -> float:
+def _env_float(name: str, default: float, minimum: float | None = None) -> float:
     try:
-        return float(os.getenv(name, str(default)))
+        value = float(os.getenv(name, str(default)))
     except ValueError:
         return default
+    if minimum is not None and value < minimum:
+        return default
+    return value
 
 
 def build_news_analysis_prompt(
@@ -230,43 +249,133 @@ def analyze_article_with_deepseek(article: dict, config: dict) -> dict:
         input_text = input_text[:max_input_chars]
         messages[-1]["content"] = str(messages[-1]["content"])[:max_input_chars]
 
-    try:
-        client = OpenAI(
-            api_key=config["api_key"],
-            base_url=config.get("base_url", "https://api.deepseek.com"),
-        )
-        response = client.chat.completions.create(
-            model=config.get("model", "deepseek-v4-flash"),
-            messages=messages,
-            max_tokens=int(config.get("max_output_tokens", 800) or 800),
-            temperature=float(config.get("temperature", 0.1) or 0.1),
-        )
-        content = response.choices[0].message.content if response.choices else ""
-        if not content:
-            raise ValueError("empty_response")
+    max_retries = int(config.get("max_retries", 2) or 0)
+    max_retries = max(0, max_retries)
+    retry_sleep_seconds = float(config.get("retry_sleep_seconds", 2.0) or 0.0)
+    retry_sleep_seconds = max(0.0, retry_sleep_seconds)
+    total_attempts = max_retries + 1
+    last_error = "DeepSeek API request failed"
 
-        parsed = parse_deepseek_json_response(content)
-        usage = getattr(response, "usage", None)
-        return normalize_analysis_result(
-            article=article,
-            raw_result=parsed,
-            config=config,
-            status="ok",
-            input_chars=len(input_text),
-            output_chars=len(content),
-            input_tokens=getattr(usage, "prompt_tokens", None) if usage else None,
-            output_tokens=getattr(usage, "completion_tokens", None) if usage else None,
-        )
-    except Exception as error:
-        return normalize_analysis_result(
-            article=article,
-            raw_result={},
-            config=config,
-            status="failed",
-            error_message=summarize_deepseek_error(error),
-            input_chars=len(input_text),
-            output_chars=0,
-        )
+    for attempt in range(total_attempts):
+        try:
+            client = OpenAI(
+                api_key=config["api_key"],
+                base_url=config.get("base_url", "https://api.deepseek.com"),
+            )
+            response = client.chat.completions.create(
+                model=config.get("model", "deepseek-v4-flash"),
+                messages=messages,
+                max_tokens=int(config.get("max_output_tokens", 800) or 800),
+                temperature=float(config.get("temperature", 0.1) or 0.1),
+            )
+            content = _extract_response_content(response)
+            parsed = parse_deepseek_json_response(content)
+            usage = getattr(response, "usage", None)
+            return normalize_analysis_result(
+                article=article,
+                raw_result=parsed,
+                config=config,
+                status="ok",
+                input_chars=len(input_text),
+                output_chars=len(content),
+                input_tokens=getattr(usage, "prompt_tokens", None) if usage else None,
+                output_tokens=getattr(usage, "completion_tokens", None) if usage else None,
+            )
+        except Exception as error:
+            short_error = summarize_deepseek_error(error)
+            last_error = short_error
+            retryable = is_retryable_deepseek_error(
+                short_error
+            ) or is_retryable_deepseek_error(error)
+
+            if attempt < max_retries and retryable:
+                news_id = _clean_text(article.get("news_id", ""))
+                print(
+                    f"DeepSeek analysis failed for {news_id} on attempt "
+                    f"{attempt + 1}/{total_attempts}: {short_error}. "
+                    f"Retrying in {retry_sleep_seconds}s..."
+                )
+                if retry_sleep_seconds > 0:
+                    time.sleep(retry_sleep_seconds)
+                continue
+
+            return normalize_analysis_result(
+                article=article,
+                raw_result={},
+                config=config,
+                status="failed",
+                error_message=last_error,
+                input_chars=len(input_text),
+                output_chars=0,
+            )
+
+    return normalize_analysis_result(
+        article=article,
+        raw_result={},
+        config=config,
+        status="failed",
+        error_message=last_error,
+        input_chars=len(input_text),
+        output_chars=0,
+    )
+
+
+def _extract_response_content(response: Any) -> str:
+    if response is None:
+        raise ValueError("empty_response")
+
+    choices = getattr(response, "choices", None)
+    if not choices:
+        raise ValueError("empty_response")
+
+    first_choice = choices[0]
+    message = getattr(first_choice, "message", None)
+    if message is None:
+        raise ValueError("empty_response")
+
+    content = getattr(message, "content", None)
+    if content is None or not str(content).strip():
+        raise ValueError("empty_response")
+
+    return str(content).strip()
+
+
+def is_retryable_deepseek_error(error: Exception | str) -> bool:
+    """
+    Return True if a DeepSeek article analysis failure is likely transient.
+    """
+
+    text = str(error).lower()
+    non_retryable_terms = [
+        "401",
+        "authentication failed",
+        "402",
+        "balance is insufficient",
+        "insufficient balance",
+        "missing deepseek_api_key",
+        "deepseek_api_key is not set",
+        "invalid request",
+        "bad input",
+    ]
+    if any(term in text for term in non_retryable_terms):
+        return False
+
+    retryable_terms = [
+        "empty_response",
+        "invalid_json_response",
+        "timeout",
+        "timed out",
+        "429",
+        "rate limit",
+        "temporarily unavailable",
+        "connection error",
+        "server error",
+        "500",
+        "502",
+        "503",
+        "504",
+    ]
+    return any(term in text for term in retryable_terms)
 
 
 def normalize_analysis_result(
@@ -338,7 +447,7 @@ def summarize_deepseek_error(error: Exception | str) -> str:
         return "DeepSeek API authentication failed"
     if "402" in lowered or "insufficient balance" in lowered:
         return "DeepSeek API balance is insufficient"
-    if "429" in lowered:
+    if "429" in lowered or "rate limit" in lowered:
         return "DeepSeek API rate limit exceeded"
     if "timeout" in lowered or "timed out" in lowered:
         return "DeepSeek API request timeout"

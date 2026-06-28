@@ -54,6 +54,8 @@ INPUT_COLUMNS = [
     "reason",
 ]
 
+SELECTION_REASON_COLUMN = "_deepseek_selection_reason"
+
 
 def now_utc_iso() -> str:
     return datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z")
@@ -121,26 +123,72 @@ def select_articles_to_analyze(
     prompt_version: str,
     limit: int,
     force: bool = False,
-) -> tuple[pd.DataFrame, int]:
-    if existing.empty or force:
-        candidates = articles.copy()
-        skipped = 0
-    else:
-        analyzed_keys = set(
-            zip(
-                existing["news_id"].fillna("").astype(str),
-                existing["model"].fillna("").astype(str),
-                existing["prompt_version"].fillna("").astype(str),
-                strict=False,
-            )
-        )
-        mask = ~articles["news_id"].fillna("").astype(str).map(
-            lambda news_id: (news_id, model, prompt_version) in analyzed_keys
-        )
-        skipped = int((~mask).sum())
-        candidates = articles[mask].copy()
+) -> tuple[pd.DataFrame, pd.DataFrame, int]:
+    existing_statuses = _existing_status_by_news_id(existing, model, prompt_version)
+    selected_rows = []
+    skipped_rows = []
 
-    return candidates.head(limit), skipped
+    for _, row in articles.iterrows():
+        news_id = str(row.get("news_id", "") or "")
+        existing_status = existing_statuses.get(news_id, "")
+
+        if existing_status == "ok" and not force:
+            skipped_rows.append(row.to_dict())
+            continue
+
+        reason = "new"
+        if existing_status:
+            reason = f"previous {existing_status}"
+
+        item = row.to_dict()
+        item[SELECTION_REASON_COLUMN] = reason
+        selected_rows.append(item)
+
+    selected = pd.DataFrame(selected_rows)
+    skipped_ok = pd.DataFrame(skipped_rows)
+
+    if selected.empty:
+        selected = pd.DataFrame(columns=[*INPUT_COLUMNS, SELECTION_REASON_COLUMN])
+    else:
+        selected = selected.reindex(columns=[*INPUT_COLUMNS, SELECTION_REASON_COLUMN])
+
+    if skipped_ok.empty:
+        skipped_ok = pd.DataFrame(columns=INPUT_COLUMNS)
+    else:
+        skipped_ok = skipped_ok.reindex(columns=INPUT_COLUMNS)
+
+    selected = selected.head(limit).copy()
+    retry_failed = int(selected[SELECTION_REASON_COLUMN].eq("previous failed").sum())
+
+    return selected, skipped_ok, retry_failed
+
+
+def _existing_status_by_news_id(
+    existing: pd.DataFrame,
+    model: str,
+    prompt_version: str,
+) -> dict[str, str]:
+    if existing.empty:
+        return {}
+
+    relevant = existing[
+        (existing["model"].fillna("").astype(str) == model)
+        & (existing["prompt_version"].fillna("").astype(str) == prompt_version)
+    ].copy()
+    if relevant.empty:
+        return {}
+
+    relevant = relevant.drop_duplicates(
+        subset=["news_id", "model", "prompt_version"],
+        keep="last",
+    )
+    return dict(
+        zip(
+            relevant["news_id"].fillna("").astype(str),
+            relevant["status"].fillna("").astype(str).str.lower(),
+            strict=False,
+        )
+    )
 
 
 def upsert_analysis_rows(
@@ -154,7 +202,7 @@ def upsert_analysis_rows(
     combined = combined.drop_duplicates(
         subset=["news_id", "model", "prompt_version"],
         keep="last",
-    )
+    ).reset_index(drop=True)
     return combined.reindex(columns=ANALYSIS_COLUMNS)
 
 
@@ -166,6 +214,7 @@ def run_analysis(args: argparse.Namespace) -> int:
     articles_analyzed = 0
     articles_failed = 0
     articles_skipped = 0
+    retrying_previous_failed = 0
 
     try:
         defaults = load_deepseek_runtime_defaults()
@@ -174,7 +223,7 @@ def run_analysis(args: argparse.Namespace) -> int:
         limit = args.limit if args.limit is not None else defaults["analysis_limit"]
         articles = load_input_articles(input_file)
         existing = read_csv_safe(output_file, ANALYSIS_COLUMNS)
-        selected, articles_skipped = select_articles_to_analyze(
+        selected, skipped_ok, retrying_previous_failed = select_articles_to_analyze(
             articles=articles,
             existing=existing,
             model=model,
@@ -182,17 +231,32 @@ def run_analysis(args: argparse.Namespace) -> int:
             limit=limit,
             force=args.force,
         )
+        articles_skipped = len(skipped_ok)
 
         if args.dry_run:
-            print(f"Dry run: {len(selected)} article(s) would be analyzed.")
+            print("Dry run only. No API calls will be made.")
+            print()
+            print(f"To analyze: {len(selected)}")
+            print(f"Skipped existing ok: {articles_skipped}")
+            print(f"Retrying previous failed: {retrying_previous_failed}")
+            print()
+            print("To analyze:")
             for _, row in selected.iterrows():
-                print(f"- {row['news_id']} | {row['title']}")
+                reason = row.get(SELECTION_REASON_COLUMN, "new")
+                print(f"- {row['news_id']} | {reason} | {row['title']}")
+            print()
+            print("Skipped existing ok:")
+            if skipped_ok.empty:
+                print("- none")
+            else:
+                for _, row in skipped_ok.iterrows():
+                    print(f"- {row['news_id']} | {row['title']}")
             return 0
 
         config = load_deepseek_config()
         model = config["model"]
         prompt_version = config["prompt_version"]
-        selected, articles_skipped = select_articles_to_analyze(
+        selected, skipped_ok, retrying_previous_failed = select_articles_to_analyze(
             articles=articles,
             existing=existing,
             model=model,
@@ -200,10 +264,12 @@ def run_analysis(args: argparse.Namespace) -> int:
             limit=limit,
             force=args.force,
         )
+        articles_skipped = len(skipped_ok)
         rows = []
 
         for _, row in selected.iterrows():
-            result = analyze_article_with_deepseek(row.to_dict(), config)
+            article = row.drop(labels=[SELECTION_REASON_COLUMN], errors="ignore").to_dict()
+            result = analyze_article_with_deepseek(article, config)
             rows.append(result)
             articles_analyzed += 1
             if result["status"] == "failed":
@@ -218,7 +284,12 @@ def run_analysis(args: argparse.Namespace) -> int:
         elif not output_file.exists():
             write_csv(pd.DataFrame(columns=ANALYSIS_COLUMNS), output_file, ANALYSIS_COLUMNS)
 
-        status = _log_status(articles_analyzed, articles_failed)
+        status = _log_status(
+            articles_analyzed=articles_analyzed,
+            articles_failed=articles_failed,
+            articles_seen=len(articles),
+            articles_skipped=articles_skipped,
+        )
         append_log(
             log_file,
             {
@@ -259,9 +330,14 @@ def run_analysis(args: argparse.Namespace) -> int:
         return 1
 
 
-def _log_status(articles_analyzed: int, articles_failed: int) -> str:
+def _log_status(
+    articles_analyzed: int,
+    articles_failed: int,
+    articles_seen: int,
+    articles_skipped: int,
+) -> str:
     if articles_analyzed == 0:
-        return "ok"
+        return "skipped"
     if articles_failed == 0:
         return "ok"
     if articles_failed == articles_analyzed:
