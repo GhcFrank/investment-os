@@ -1,2 +1,3 @@
 run_at,status,articles_seen,articles_analyzed,articles_skipped,articles_failed,model,prompt_version,error_message
 2026-06-28T20:02:33Z,partial_failed,19,3,0,2,deepseek-v4-flash,deepseek_news_v1,
+2026-06-28T20:34:51Z,partial_failed,19,5,1,2,deepseek-v4-flash,deepseek_news_v1,
