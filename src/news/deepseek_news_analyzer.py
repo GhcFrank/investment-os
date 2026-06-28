@@ -8,6 +8,7 @@ import json
 import os
 import re
 import time
+import csv
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -18,6 +19,8 @@ from openai import OpenAI
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 ENV_FILE = BASE_DIR / ".env"
+DEFAULT_COMPANY_MASTER_FILE = Path("data/master/company_master.csv")
+COMPANY_UNIVERSE_TRUNCATED_MARKER = "[COMPANY_UNIVERSE_TRUNCATED]"
 
 ANALYSIS_COLUMNS = [
     "news_id",
@@ -143,9 +146,64 @@ def _env_float(name: str, default: float, minimum: float | None = None) -> float
     return value
 
 
+def load_company_universe(
+    company_master_file: Path | str = DEFAULT_COMPANY_MASTER_FILE,
+    max_companies: int | None = None,
+) -> list[str]:
+    """
+    Load company universe from company_master.csv for DeepSeek prompt context.
+
+    This function is read-only and returns compact rows like:
+    "ANET | Arista Networks | AI Infrastructure | Networking | Connectivity"
+    """
+
+    path = Path(company_master_file)
+    if not path.is_absolute():
+        path = BASE_DIR / path
+    if not path.exists():
+        return []
+
+    limit = None
+    if max_companies is not None:
+        limit = max(0, int(max_companies))
+
+    universe = []
+    seen = set()
+    truncated = False
+
+    with path.open("r", encoding="utf-8", newline="") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            ticker = _clean_text(row.get("ticker", "")).upper()
+            if not ticker:
+                continue
+            item = " | ".join(
+                [
+                    ticker,
+                    _clean_text(row.get("company", "")),
+                    _clean_text(row.get("theme", "")),
+                    _clean_text(row.get("subtheme", "")),
+                    _clean_text(row.get("supply_chain_layer", "")),
+                ]
+            )
+            if item in seen:
+                continue
+            if limit is not None and len(universe) >= limit:
+                truncated = True
+                break
+            seen.add(item)
+            universe.append(item)
+
+    if truncated:
+        universe.append(COMPANY_UNIVERSE_TRUNCATED_MARKER)
+
+    return universe
+
+
 def build_news_analysis_prompt(
     article: dict,
     company_universe: list[str] | None = None,
+    max_input_chars: int = 6000,
 ) -> list[dict]:
     """
     Build OpenAI-compatible chat messages for DeepSeek.
@@ -155,29 +213,12 @@ def build_news_analysis_prompt(
         "You are an investment research assistant for an AI infrastructure and "
         "software watchlist. Your job is to classify and summarize news articles. "
         "Return JSON only. Do not include Markdown. Do not include explanations "
-        "outside JSON. Do not invent ticker symbols that are not supported by the "
-        "article text. If the article is irrelevant, use "
+        "outside JSON. Use the supported company universe to identify directly "
+        "and indirectly related tickers. Do not invent tickers outside the "
+        "provided universe unless the article explicitly names a public company "
+        "ticker. If the article is irrelevant, use "
         'recommended_decision="reject" and signal_type="noise".'
     )
-    fields = [
-        "news_id",
-        "title",
-        "url",
-        "published_at_local",
-        "published_at_gmt",
-        "content_class",
-        "source_quality",
-        "matched_tickers",
-        "matched_subthemes",
-        "matched_keywords",
-        "summary",
-        "excerpt",
-        "reason",
-    ]
-    article_lines = [
-        f"{field}: {_clean_text(article.get(field, ''))}" for field in fields
-    ]
-    universe = ", ".join(company_universe or [])
     schema = {
         "relevance_score": "integer 1-5",
         "impact_score": "integer 1-5",
@@ -195,19 +236,74 @@ def build_news_analysis_prompt(
         "follow_up_questions": ["Question 1", "Question 2"],
         "confidence": "integer 1-5",
     }
+
+    company_universe_block = _build_company_universe_block(company_universe or [])
+    article_context_block = build_article_context(article, max_input_chars)
+    output_schema_block = (
+        "Return JSON only. Do not include Markdown or commentary.\n"
+        "Allowed impact_direction values: positive, negative, mixed, neutral, unclear.\n"
+        "Allowed signal_type values: demand, supply, capex, product, competition, "
+        "customer, regulation, macro, earnings, financing, noise.\n"
+        "Allowed recommended_decision values: keep, reject, watch.\n"
+        "JSON schema:\n"
+        + json.dumps(schema, ensure_ascii=False)
+    )
     user = (
         "Analyze this news article for the AI infrastructure and software watchlist.\n\n"
-        f"Supported company universe: {universe}\n\n"
-        "Article fields:\n"
-        + "\n".join(article_lines)
-        + "\n\nReturn JSON only with this schema:\n"
-        + json.dumps(schema, ensure_ascii=False)
+        + company_universe_block
+        + "\n\nCompany universe rules:\n"
+        "Use the supported company universe to identify directly and indirectly related tickers.\n"
+        "Do not invent tickers outside the provided universe unless the article explicitly names a public company ticker.\n"
+        "If no supported ticker is directly relevant, leave primary_tickers empty and use secondary_tickers only when there is a clear supply-chain connection.\n"
+        "Do not force ticker associations just because a company appears in the universe.\n\n"
+        "Article context:\n"
+        + article_context_block
+        + "\n\nOutput requirements:\n"
+        + output_schema_block
     )
 
     return [
         {"role": "system", "content": system},
         {"role": "user", "content": user},
     ]
+
+
+def _build_company_universe_block(company_universe: list[str]) -> str:
+    lines = ["Supported company universe:"]
+    if company_universe:
+        lines.extend(company_universe)
+    else:
+        lines.append("(none loaded)")
+    return "\n".join(lines)
+
+
+def build_article_context(article: dict, max_chars: int) -> str:
+    """
+    Build article-only context and truncate only this section.
+    """
+
+    fields = [
+        "news_id",
+        "title",
+        "url",
+        "published_at_local",
+        "published_at_gmt",
+        "content_class",
+        "source_quality",
+        "matched_tickers",
+        "matched_subthemes",
+        "matched_keywords",
+        "summary",
+        "excerpt",
+        "reason",
+    ]
+    context = "\n".join(
+        f"{field}: {_clean_text(article.get(field, ''))}" for field in fields
+    )
+    max_chars = max(0, int(max_chars or 0))
+    if len(context) > max_chars:
+        return context[:max_chars] + "\n[ARTICLE_CONTEXT_TRUNCATED]"
+    return context
 
 
 def parse_deepseek_json_response(content: str) -> dict:
@@ -237,17 +333,22 @@ def parse_deepseek_json_response(content: str) -> dict:
     return parsed
 
 
-def analyze_article_with_deepseek(article: dict, config: dict) -> dict:
+def analyze_article_with_deepseek(
+    article: dict,
+    config: dict,
+    company_universe: list[str] | None = None,
+) -> dict:
     """
     Call DeepSeek API for one article and return a normalized analysis row.
     """
 
-    messages = build_news_analysis_prompt(article)
-    input_text = "\n".join(str(message.get("content", "")) for message in messages)
     max_input_chars = int(config.get("max_input_chars", 6000) or 6000)
-    if len(input_text) > max_input_chars:
-        input_text = input_text[:max_input_chars]
-        messages[-1]["content"] = str(messages[-1]["content"])[:max_input_chars]
+    messages = build_news_analysis_prompt(
+        article=article,
+        company_universe=company_universe,
+        max_input_chars=max_input_chars,
+    )
+    input_chars = sum(len(str(message.get("content", ""))) for message in messages)
 
     max_retries = int(config.get("max_retries", 2) or 0)
     max_retries = max(0, max_retries)
@@ -276,7 +377,7 @@ def analyze_article_with_deepseek(article: dict, config: dict) -> dict:
                 raw_result=parsed,
                 config=config,
                 status="ok",
-                input_chars=len(input_text),
+                input_chars=input_chars,
                 output_chars=len(content),
                 input_tokens=getattr(usage, "prompt_tokens", None) if usage else None,
                 output_tokens=getattr(usage, "completion_tokens", None) if usage else None,
@@ -305,7 +406,7 @@ def analyze_article_with_deepseek(article: dict, config: dict) -> dict:
                 config=config,
                 status="failed",
                 error_message=last_error,
-                input_chars=len(input_text),
+                input_chars=input_chars,
                 output_chars=0,
             )
 
@@ -315,7 +416,7 @@ def analyze_article_with_deepseek(article: dict, config: dict) -> dict:
         config=config,
         status="failed",
         error_message=last_error,
-        input_chars=len(input_text),
+        input_chars=input_chars,
         output_chars=0,
     )
 

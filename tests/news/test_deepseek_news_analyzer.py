@@ -14,7 +14,9 @@ from news import analyze_news_with_deepseek as cli
 from news.deepseek_news_analyzer import (
     ANALYSIS_COLUMNS,
     analyze_article_with_deepseek,
+    build_news_analysis_prompt,
     is_retryable_deepseek_error,
+    load_company_universe,
     normalize_analysis_result,
     parse_deepseek_json_response,
     summarize_deepseek_error,
@@ -103,6 +105,8 @@ def args_for(tmp_path: Path, **overrides) -> argparse.Namespace:
         "output_file": str(tmp_path / "analysis.csv"),
         "log_file": str(tmp_path / "analysis_log.csv"),
         "sleep_seconds": 0,
+        "company_master_file": str(tmp_path / "company_master.csv"),
+        "max_company_universe": 200,
     }
     values.update(overrides)
     return argparse.Namespace(**values)
@@ -138,6 +142,105 @@ class DeepSeekAnalyzerTests(unittest.TestCase):
         message = summarize_deepseek_error("402 Insufficient Balance")
 
         self.assertEqual(message, "DeepSeek API balance is insufficient")
+
+    def test_load_company_universe_reads_company_master(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "company_master.csv"
+            pd.DataFrame(
+                [
+                    {
+                        "ticker": "anet",
+                        "company": "Arista Networks",
+                        "sector": "Technology",
+                        "industry_group": "Networking Equipment",
+                        "theme": "AI Infrastructure",
+                        "subtheme": "Networking",
+                        "supply_chain_layer": "Connectivity",
+                        "business_quality_score": "8",
+                    },
+                    {
+                        "ticker": "cohr",
+                        "company": "Coherent",
+                        "sector": "Technology",
+                        "industry_group": "Optical Components",
+                        "theme": "AI Infrastructure",
+                        "subtheme": "Optical",
+                        "supply_chain_layer": "Connectivity",
+                        "business_quality_score": "7",
+                    },
+                ]
+            ).to_csv(path, index=False)
+
+            universe = load_company_universe(path)
+
+        self.assertEqual(
+            universe,
+            [
+                "ANET | Arista Networks | AI Infrastructure | Networking | Connectivity",
+                "COHR | Coherent | AI Infrastructure | Optical | Connectivity",
+            ],
+        )
+
+    def test_load_company_universe_missing_file(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            universe = load_company_universe(Path(tmp) / "missing.csv")
+
+        self.assertEqual(universe, [])
+
+    def test_prompt_contains_company_universe(self):
+        company_universe = [
+            "ANET | Arista Networks | AI Infrastructure | Networking | Connectivity",
+        ]
+
+        messages = build_news_analysis_prompt(
+            article=article(),
+            company_universe=company_universe,
+            max_input_chars=1000,
+        )
+
+        user_message = messages[1]["content"]
+        self.assertIn("Supported company universe", user_message)
+        self.assertIn("ANET | Arista Networks", user_message)
+
+    def test_prompt_does_not_truncate_json_schema(self):
+        company_universe = [
+            "ANET | Arista Networks | AI Infrastructure | Networking | Connectivity",
+        ]
+        long_article = {**article(), "excerpt": "x" * 20000}
+
+        messages = build_news_analysis_prompt(
+            article=long_article,
+            company_universe=company_universe,
+            max_input_chars=500,
+        )
+
+        user_message = messages[1]["content"]
+        for expected in [
+            "Return JSON only",
+            "relevance_score",
+            "impact_score",
+            "recommended_decision",
+            "primary_tickers",
+            "follow_up_questions",
+        ]:
+            self.assertIn(expected, user_message)
+        self.assertIn("[ARTICLE_CONTEXT_TRUNCATED]", user_message)
+
+    def test_only_article_context_is_truncated(self):
+        company_universe = [
+            "ANET | Arista Networks | AI Infrastructure | Networking | Connectivity",
+        ]
+        long_article = {**article(), "excerpt": "x" * 20000}
+
+        messages = build_news_analysis_prompt(
+            article=long_article,
+            company_universe=company_universe,
+            max_input_chars=500,
+        )
+
+        self.assertIn("You are an investment research assistant", messages[0]["content"])
+        self.assertIn("ANET | Arista Networks", messages[1]["content"])
+        self.assertIn("JSON schema", messages[1]["content"])
 
     def test_empty_response_is_retryable(self):
         self.assertTrue(is_retryable_deepseek_error("empty_response"))
@@ -186,6 +289,37 @@ class DeepSeekAnalyzerTests(unittest.TestCase):
         self.assertEqual(client.chat.completions.create.call_count, 3)
         self.assertEqual(result["status"], "failed")
         self.assertEqual(result["error_message"], "empty_response")
+
+    def test_analyze_article_passes_company_universe_to_prompt_builder(self):
+        company_universe = [
+            "ANET | Arista Networks | AI Infrastructure | Networking | Connectivity",
+        ]
+        client = Mock()
+        client.chat.completions.create.return_value = response_with_content(
+            json.dumps(raw_result())
+        )
+        prompt_messages = [
+            {"role": "system", "content": "system"},
+            {"role": "user", "content": "user"},
+        ]
+
+        with patch("news.deepseek_news_analyzer.OpenAI", return_value=client):
+            with patch(
+                "news.deepseek_news_analyzer.build_news_analysis_prompt",
+                return_value=prompt_messages,
+            ) as build_prompt:
+                result = analyze_article_with_deepseek(
+                    article=article(),
+                    config=CONFIG,
+                    company_universe=company_universe,
+                )
+
+        self.assertEqual(result["status"], "ok")
+        build_prompt.assert_called_once_with(
+            article=article(),
+            company_universe=company_universe,
+            max_input_chars=CONFIG["max_input_chars"],
+        )
 
 
 class DeepSeekCliTests(unittest.TestCase):
@@ -383,6 +517,46 @@ class DeepSeekCliTests(unittest.TestCase):
             self.assertIn("Skipped existing ok: 1", output_text)
             self.assertIn("Retrying previous failed: 1", output_text)
             self.assertIn("news_1 | previous failed", output_text)
+
+    def test_dry_run_loads_company_universe(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            input_file = tmp_path / "review.csv"
+            company_master_file = tmp_path / "company_master.csv"
+            write_input(input_file, [article("news_1")])
+            pd.DataFrame(
+                [
+                    {
+                        "ticker": "ANET",
+                        "company": "Arista Networks",
+                        "theme": "AI Infrastructure",
+                        "subtheme": "Networking",
+                        "supply_chain_layer": "Connectivity",
+                    },
+                    {
+                        "ticker": "COHR",
+                        "company": "Coherent",
+                        "theme": "AI Infrastructure",
+                        "subtheme": "Optical",
+                        "supply_chain_layer": "Connectivity",
+                    },
+                ]
+            ).to_csv(company_master_file, index=False)
+
+            stdout = io.StringIO()
+            with patch.object(cli, "load_deepseek_runtime_defaults", return_value=CONFIG):
+                with redirect_stdout(stdout):
+                    exit_code = cli.run_analysis(
+                        args_for(
+                            tmp_path,
+                            dry_run=True,
+                            input_file=str(input_file),
+                            company_master_file=str(company_master_file),
+                        )
+                    )
+
+            self.assertEqual(exit_code, 0)
+            self.assertIn("Loaded company universe: 2 companies", stdout.getvalue())
 
     def test_output_schema(self):
         with tempfile.TemporaryDirectory() as tmp:

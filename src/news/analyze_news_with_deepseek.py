@@ -14,7 +14,9 @@ import pandas as pd
 
 from news.deepseek_news_analyzer import (
     ANALYSIS_COLUMNS,
+    COMPANY_UNIVERSE_TRUNCATED_MARKER,
     analyze_article_with_deepseek,
+    load_company_universe,
     load_deepseek_config,
     load_deepseek_runtime_defaults,
     summarize_deepseek_error,
@@ -25,6 +27,7 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_INPUT_FILE = BASE_DIR / "data" / "news" / "news_review_queue.csv"
 DEFAULT_OUTPUT_FILE = BASE_DIR / "data" / "news" / "deepseek_news_analysis.csv"
 DEFAULT_LOG_FILE = BASE_DIR / "data" / "news" / "deepseek_news_analysis_log.csv"
+DEFAULT_COMPANY_MASTER_FILE = BASE_DIR / "data" / "master" / "company_master.csv"
 
 LOG_COLUMNS = [
     "run_at",
@@ -223,6 +226,11 @@ def run_analysis(args: argparse.Namespace) -> int:
         limit = args.limit if args.limit is not None else defaults["analysis_limit"]
         articles = load_input_articles(input_file)
         existing = read_csv_safe(output_file, ANALYSIS_COLUMNS)
+        company_universe = load_company_universe(
+            company_master_file=args.company_master_file,
+            max_companies=args.max_company_universe,
+        )
+        company_universe_count = _company_universe_count(company_universe)
         selected, skipped_ok, retrying_previous_failed = select_articles_to_analyze(
             articles=articles,
             existing=existing,
@@ -235,6 +243,7 @@ def run_analysis(args: argparse.Namespace) -> int:
 
         if args.dry_run:
             print("Dry run only. No API calls will be made.")
+            print(f"Loaded company universe: {company_universe_count} companies")
             print()
             print(f"To analyze: {len(selected)}")
             print(f"Skipped existing ok: {articles_skipped}")
@@ -269,7 +278,11 @@ def run_analysis(args: argparse.Namespace) -> int:
 
         for _, row in selected.iterrows():
             article = row.drop(labels=[SELECTION_REASON_COLUMN], errors="ignore").to_dict()
-            result = analyze_article_with_deepseek(article, config)
+            result = analyze_article_with_deepseek(
+                article=article,
+                config=config,
+                company_universe=company_universe,
+            )
             rows.append(result)
             articles_analyzed += 1
             if result["status"] == "failed":
@@ -345,6 +358,10 @@ def _log_status(
     return "partial_failed"
 
 
+def _company_universe_count(company_universe: list[str]) -> int:
+    return sum(1 for item in company_universe if item != COMPANY_UNIVERSE_TRUNCATED_MARKER)
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     defaults = load_deepseek_runtime_defaults()
     parser = argparse.ArgumentParser(description="Analyze news with DeepSeek.")
@@ -355,6 +372,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output-file", default=str(DEFAULT_OUTPUT_FILE))
     parser.add_argument("--log-file", default=str(DEFAULT_LOG_FILE))
     parser.add_argument("--sleep-seconds", type=float, default=1.0)
+    parser.add_argument("--company-master-file", default=str(DEFAULT_COMPANY_MASTER_FILE))
+    parser.add_argument(
+        "--max-company-universe",
+        type=int,
+        default=200,
+        help=(
+            "Maximum companies to include as DeepSeek prompt context. "
+            "DEEPSEEK_MAX_INPUT_CHARS limits article context only; output "
+            "schema and instructions are not truncated."
+        ),
+    )
     return parser.parse_args(argv)
 
 
