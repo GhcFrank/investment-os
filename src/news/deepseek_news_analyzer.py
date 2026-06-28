@@ -1,0 +1,400 @@
+"""
+Core helpers for DeepSeek-powered news analysis.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
+
+from dotenv import load_dotenv
+from openai import OpenAI
+
+
+BASE_DIR = Path(__file__).resolve().parents[2]
+ENV_FILE = BASE_DIR / ".env"
+
+ANALYSIS_COLUMNS = [
+    "news_id",
+    "analysis_date",
+    "prompt_version",
+    "model",
+    "status",
+    "error_message",
+    "relevance_score",
+    "impact_score",
+    "impact_direction",
+    "signal_type",
+    "recommended_decision",
+    "primary_tickers",
+    "secondary_tickers",
+    "primary_subthemes",
+    "summary",
+    "why_it_matters",
+    "follow_up_questions",
+    "confidence",
+    "input_chars",
+    "output_chars",
+    "input_tokens",
+    "output_tokens",
+]
+
+VALID_IMPACT_DIRECTIONS = {"positive", "negative", "mixed", "neutral", "unclear"}
+VALID_SIGNAL_TYPES = {
+    "demand",
+    "supply",
+    "capex",
+    "product",
+    "competition",
+    "customer",
+    "regulation",
+    "macro",
+    "earnings",
+    "financing",
+    "noise",
+}
+VALID_DECISIONS = {"keep", "reject", "watch"}
+
+
+def utc_today() -> str:
+    return datetime.now(UTC).date().isoformat()
+
+
+def load_deepseek_config() -> dict:
+    """
+    Read DeepSeek config from environment variables.
+    """
+
+    load_dotenv(ENV_FILE)
+    api_key = os.getenv("DEEPSEEK_API_KEY", "").strip()
+    if not api_key:
+        raise RuntimeError(
+            "DEEPSEEK_API_KEY is not set. Please configure it in .env or environment variables."
+        )
+
+    return {
+        "api_key": api_key,
+        "base_url": os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").strip(),
+        "model": os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash").strip(),
+        "prompt_version": os.getenv(
+            "DEEPSEEK_PROMPT_VERSION",
+            "deepseek_news_v1",
+        ).strip(),
+        "analysis_limit": _env_int("DEEPSEEK_NEWS_ANALYSIS_LIMIT", 20),
+        "max_input_chars": _env_int("DEEPSEEK_MAX_INPUT_CHARS", 6000),
+        "max_output_tokens": _env_int("DEEPSEEK_MAX_OUTPUT_TOKENS", 800),
+        "temperature": _env_float("DEEPSEEK_TEMPERATURE", 0.1),
+    }
+
+
+def load_deepseek_runtime_defaults() -> dict:
+    """
+    Load non-secret defaults for dry-run planning.
+    """
+
+    load_dotenv(ENV_FILE)
+    return {
+        "model": os.getenv("DEEPSEEK_MODEL", "deepseek-v4-flash").strip(),
+        "prompt_version": os.getenv(
+            "DEEPSEEK_PROMPT_VERSION",
+            "deepseek_news_v1",
+        ).strip(),
+        "analysis_limit": _env_int("DEEPSEEK_NEWS_ANALYSIS_LIMIT", 20),
+        "max_input_chars": _env_int("DEEPSEEK_MAX_INPUT_CHARS", 6000),
+        "max_output_tokens": _env_int("DEEPSEEK_MAX_OUTPUT_TOKENS", 800),
+        "temperature": _env_float("DEEPSEEK_TEMPERATURE", 0.1),
+    }
+
+
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+def _env_float(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+def build_news_analysis_prompt(
+    article: dict,
+    company_universe: list[str] | None = None,
+) -> list[dict]:
+    """
+    Build OpenAI-compatible chat messages for DeepSeek.
+    """
+
+    system = (
+        "You are an investment research assistant for an AI infrastructure and "
+        "software watchlist. Your job is to classify and summarize news articles. "
+        "Return JSON only. Do not include Markdown. Do not include explanations "
+        "outside JSON. Do not invent ticker symbols that are not supported by the "
+        "article text. If the article is irrelevant, use "
+        'recommended_decision="reject" and signal_type="noise".'
+    )
+    fields = [
+        "news_id",
+        "title",
+        "url",
+        "published_at_local",
+        "published_at_gmt",
+        "content_class",
+        "source_quality",
+        "matched_tickers",
+        "matched_subthemes",
+        "matched_keywords",
+        "summary",
+        "excerpt",
+        "reason",
+    ]
+    article_lines = [
+        f"{field}: {_clean_text(article.get(field, ''))}" for field in fields
+    ]
+    universe = ", ".join(company_universe or [])
+    schema = {
+        "relevance_score": "integer 1-5",
+        "impact_score": "integer 1-5",
+        "impact_direction": "positive | negative | mixed | neutral | unclear",
+        "signal_type": (
+            "demand | supply | capex | product | competition | customer | "
+            "regulation | macro | earnings | financing | noise"
+        ),
+        "recommended_decision": "keep | reject | watch",
+        "primary_tickers": ["ANET", "MRVL"],
+        "secondary_tickers": ["COHR", "LITE"],
+        "primary_subthemes": ["Networking", "Optical"],
+        "summary": "One sentence summary, <= 300 chars.",
+        "why_it_matters": "Why this matters to the watchlist, <= 500 chars.",
+        "follow_up_questions": ["Question 1", "Question 2"],
+        "confidence": "integer 1-5",
+    }
+    user = (
+        "Analyze this news article for the AI infrastructure and software watchlist.\n\n"
+        f"Supported company universe: {universe}\n\n"
+        "Article fields:\n"
+        + "\n".join(article_lines)
+        + "\n\nReturn JSON only with this schema:\n"
+        + json.dumps(schema, ensure_ascii=False)
+    )
+
+    return [
+        {"role": "system", "content": system},
+        {"role": "user", "content": user},
+    ]
+
+
+def parse_deepseek_json_response(content: str) -> dict:
+    """
+    Parse model response into a dict.
+    """
+
+    text = str(content or "").strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?", "", text, flags=re.IGNORECASE).strip()
+        text = re.sub(r"```$", "", text).strip()
+
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        match = re.search(r"\{.*\}", text, flags=re.DOTALL)
+        if not match:
+            raise ValueError("invalid_json_response") from None
+        try:
+            parsed = json.loads(match.group(0))
+        except json.JSONDecodeError:
+            raise ValueError("invalid_json_response") from None
+
+    if not isinstance(parsed, dict):
+        raise ValueError("invalid_json_response")
+
+    return parsed
+
+
+def analyze_article_with_deepseek(article: dict, config: dict) -> dict:
+    """
+    Call DeepSeek API for one article and return a normalized analysis row.
+    """
+
+    messages = build_news_analysis_prompt(article)
+    input_text = "\n".join(str(message.get("content", "")) for message in messages)
+    max_input_chars = int(config.get("max_input_chars", 6000) or 6000)
+    if len(input_text) > max_input_chars:
+        input_text = input_text[:max_input_chars]
+        messages[-1]["content"] = str(messages[-1]["content"])[:max_input_chars]
+
+    try:
+        client = OpenAI(
+            api_key=config["api_key"],
+            base_url=config.get("base_url", "https://api.deepseek.com"),
+        )
+        response = client.chat.completions.create(
+            model=config.get("model", "deepseek-v4-flash"),
+            messages=messages,
+            max_tokens=int(config.get("max_output_tokens", 800) or 800),
+            temperature=float(config.get("temperature", 0.1) or 0.1),
+        )
+        content = response.choices[0].message.content if response.choices else ""
+        if not content:
+            raise ValueError("empty_response")
+
+        parsed = parse_deepseek_json_response(content)
+        usage = getattr(response, "usage", None)
+        return normalize_analysis_result(
+            article=article,
+            raw_result=parsed,
+            config=config,
+            status="ok",
+            input_chars=len(input_text),
+            output_chars=len(content),
+            input_tokens=getattr(usage, "prompt_tokens", None) if usage else None,
+            output_tokens=getattr(usage, "completion_tokens", None) if usage else None,
+        )
+    except Exception as error:
+        return normalize_analysis_result(
+            article=article,
+            raw_result={},
+            config=config,
+            status="failed",
+            error_message=summarize_deepseek_error(error),
+            input_chars=len(input_text),
+            output_chars=0,
+        )
+
+
+def normalize_analysis_result(
+    article: dict,
+    raw_result: dict,
+    config: dict,
+    status: str = "ok",
+    error_message: str = "",
+    input_chars: int | None = None,
+    output_chars: int | None = None,
+    input_tokens: int | None = None,
+    output_tokens: int | None = None,
+) -> dict:
+    """
+    Convert parsed model JSON into fixed CSV output schema.
+    """
+
+    result = {
+        "news_id": _clean_text(article.get("news_id", "")),
+        "analysis_date": utc_today(),
+        "prompt_version": _clean_text(config.get("prompt_version", "")),
+        "model": _clean_text(config.get("model", "")),
+        "status": status,
+        "error_message": error_message,
+        "relevance_score": _score(raw_result.get("relevance_score")),
+        "impact_score": _score(raw_result.get("impact_score")),
+        "impact_direction": _choice(
+            raw_result.get("impact_direction"),
+            VALID_IMPACT_DIRECTIONS,
+            "unclear",
+        ),
+        "signal_type": _choice(raw_result.get("signal_type"), VALID_SIGNAL_TYPES, "noise"),
+        "recommended_decision": _choice(
+            raw_result.get("recommended_decision"),
+            VALID_DECISIONS,
+            "watch",
+        ),
+        "primary_tickers": _join_list(raw_result.get("primary_tickers")),
+        "secondary_tickers": _join_list(raw_result.get("secondary_tickers")),
+        "primary_subthemes": _join_list(raw_result.get("primary_subthemes")),
+        "summary": _truncate(_clean_text(raw_result.get("summary", "")), 300),
+        "why_it_matters": _truncate(
+            _clean_text(raw_result.get("why_it_matters", "")),
+            500,
+        ),
+        "follow_up_questions": _join_list(
+            raw_result.get("follow_up_questions"),
+            separator=" | ",
+            max_items=5,
+        ),
+        "confidence": _score(raw_result.get("confidence")),
+        "input_chars": "" if input_chars is None else str(input_chars),
+        "output_chars": "" if output_chars is None else str(output_chars),
+        "input_tokens": "" if input_tokens is None else str(input_tokens),
+        "output_tokens": "" if output_tokens is None else str(output_tokens),
+    }
+
+    return {column: result.get(column, "") for column in ANALYSIS_COLUMNS}
+
+
+def summarize_deepseek_error(error: Exception | str) -> str:
+    """
+    Return a short user-readable error message.
+    """
+
+    text = str(error)
+    lowered = text.lower()
+    if "401" in lowered:
+        return "DeepSeek API authentication failed"
+    if "402" in lowered or "insufficient balance" in lowered:
+        return "DeepSeek API balance is insufficient"
+    if "429" in lowered:
+        return "DeepSeek API rate limit exceeded"
+    if "timeout" in lowered or "timed out" in lowered:
+        return "DeepSeek API request timeout"
+    if "invalid_json_response" in lowered:
+        return "invalid_json_response"
+    if "empty_response" in lowered:
+        return "empty_response"
+
+    cleaned = re.sub(r"\s+", " ", text).strip()
+    return _truncate(cleaned or "DeepSeek API request failed", 200)
+
+
+def _clean_text(value: object) -> str:
+    if value is None:
+        return ""
+    return str(value).strip()
+
+
+def _truncate(value: str, max_length: int) -> str:
+    return value[:max_length]
+
+
+def _score(value: object) -> str:
+    try:
+        numeric = int(float(str(value).strip()))
+    except (TypeError, ValueError):
+        return ""
+    return str(max(1, min(5, numeric)))
+
+
+def _choice(value: object, allowed: set[str], default: str) -> str:
+    text = _clean_text(value).lower()
+    return text if text in allowed else default
+
+
+def _join_list(
+    value: object,
+    separator: str = ",",
+    max_items: int | None = None,
+) -> str:
+    if value is None:
+        values: list[str] = []
+    elif isinstance(value, list):
+        values = [_clean_text(item) for item in value]
+    elif isinstance(value, str):
+        if "|" in value:
+            values = [_clean_text(item) for item in value.split("|")]
+        elif "," in value:
+            values = [_clean_text(item) for item in value.split(",")]
+        else:
+            values = [_clean_text(value)] if value.strip() else []
+    else:
+        values = [_clean_text(value)]
+
+    values = [item for item in values if item]
+    if max_items is not None:
+        values = values[:max_items]
+
+    return separator.join(values)
