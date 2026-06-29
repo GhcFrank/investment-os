@@ -5,6 +5,7 @@ Backfill Semiconductor Engineering news through the WordPress REST API.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 import time
@@ -59,6 +60,7 @@ REVIEW_FILE = NEWS_DIR / "news_review_queue.csv"
 REJECT_FILE = NEWS_DIR / "news_rejected_log.csv"
 FETCH_LOG_FILE = NEWS_DIR / "news_fetch_log.csv"
 MANUAL_DECISIONS_FILE = NEWS_DIR / "news_manual_decisions.csv"
+LATEST_FETCH_MANIFEST_FILE = NEWS_DIR / "news_latest_fetch_manifest.csv"
 CATEGORIES_FILE = REFERENCE_DIR / "semiengineering_categories.csv"
 TAGS_FILE = REFERENCE_DIR / "semiengineering_tags.csv"
 
@@ -86,6 +88,17 @@ FETCH_LOG_COLUMNS = [
     "raw_file",
     "status",
     "error_message",
+]
+
+LATEST_FETCH_MANIFEST_COLUMNS = [
+    "fetch_run_at",
+    "news_id",
+    "title",
+    "url",
+    "published_at",
+    "updated_at",
+    "change_status",
+    "source",
 ]
 
 POST_FIELDS = (
@@ -438,6 +451,124 @@ def append_fetch_log(row: dict[str, object]) -> None:
     new_row = pd.DataFrame([row], columns=FETCH_LOG_COLUMNS)
     combined = pd.concat([existing, new_row], ignore_index=True)
     atomic_write_csv(combined, FETCH_LOG_FILE, FETCH_LOG_COLUMNS)
+
+
+def _clean_manifest_value(value: object) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    return str(value).strip()
+
+
+def content_hash(row: pd.Series | dict[str, object]) -> str:
+    """
+    Stable hash over article fields that indicate meaningful content changes.
+    """
+
+    parts = [
+        _clean_manifest_value(row.get("title", "")),
+        _clean_manifest_value(row.get("summary", "")),
+        _clean_manifest_value(row.get("excerpt", "")),
+        _clean_manifest_value(row.get("url", "")),
+        _clean_manifest_value(row.get("published_at_gmt", "")),
+        _clean_manifest_value(row.get("modified_at_gmt", "")),
+    ]
+    payload = "\n".join(parts)
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _latest_rows_by_news_id(frames: list[pd.DataFrame]) -> dict[str, pd.Series]:
+    combined = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame()
+    if combined.empty or "news_id" not in combined.columns:
+        return {}
+
+    combined["news_id"] = combined["news_id"].fillna("").astype(str).str.strip()
+    combined = combined[combined["news_id"] != ""].copy()
+    if combined.empty:
+        return {}
+
+    return {
+        str(row.get("news_id", "") or ""): row
+        for _, row in combined.drop_duplicates(subset=["news_id"], keep="last").iterrows()
+    }
+
+
+def _row_changed(current: pd.Series, old: pd.Series) -> bool:
+    for field in [
+        "modified_at_gmt",
+        "content_hash",
+        "title",
+        "summary",
+        "excerpt",
+        "url",
+        "published_at_gmt",
+    ]:
+        if field == "content_hash":
+            current_value = content_hash(current)
+            old_value = content_hash(old)
+        elif field not in current.index or field not in old.index:
+            continue
+        else:
+            current_value = _clean_manifest_value(current.get(field, ""))
+            old_value = _clean_manifest_value(old.get(field, ""))
+
+        if current_value and old_value and current_value != old_value:
+            return True
+
+    return False
+
+
+def build_latest_fetch_manifest(
+    rows: pd.DataFrame,
+    previous_frames: list[pd.DataFrame],
+    fetch_run_at: str,
+) -> pd.DataFrame:
+    """
+    Return rows that are new or materially updated in the current fetch.
+    """
+
+    previous_by_id = _latest_rows_by_news_id(previous_frames)
+    manifest_rows: list[dict[str, str]] = []
+
+    if rows.empty or "news_id" not in rows.columns:
+        return pd.DataFrame(columns=LATEST_FETCH_MANIFEST_COLUMNS)
+
+    for _, row in rows.iterrows():
+        news_id = _clean_manifest_value(row.get("news_id", ""))
+        if not news_id:
+            continue
+
+        old = previous_by_id.get(news_id)
+        if old is None:
+            change_status = "new"
+        elif _row_changed(row, old):
+            change_status = "updated"
+        else:
+            continue
+
+        manifest_rows.append(
+            {
+                "fetch_run_at": fetch_run_at,
+                "news_id": news_id,
+                "title": _clean_manifest_value(row.get("title", "")),
+                "url": _clean_manifest_value(row.get("url", "")),
+                "published_at": _clean_manifest_value(
+                    row.get("published_at_gmt", row.get("published_at_local", ""))
+                ),
+                "updated_at": _clean_manifest_value(row.get("modified_at_gmt", "")),
+                "change_status": change_status,
+                "source": _clean_manifest_value(row.get("source_id", SOURCE_ID)) or SOURCE_ID,
+            }
+        )
+
+    return pd.DataFrame(manifest_rows, columns=LATEST_FETCH_MANIFEST_COLUMNS)
+
+
+def write_latest_fetch_manifest(manifest: pd.DataFrame) -> None:
+    atomic_write_csv(
+        manifest.reindex(columns=LATEST_FETCH_MANIFEST_COLUMNS),
+        LATEST_FETCH_MANIFEST_FILE,
+        LATEST_FETCH_MANIFEST_COLUMNS,
+    )
 
 
 def write_outputs(rows: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
@@ -835,9 +966,21 @@ def run_backfill(args: argparse.Namespace) -> int:
     try:
         rows, window_start, window_end, raw_file, pages_requested, _ = _fetch_and_classify(args)
         keep, review, reject = split_rows(rows)
+        previous_frames = [
+            read_csv_safe(CURRENT_NEWS_FILE, NEWS_COLUMNS),
+            read_csv_safe(HISTORY_FILE, NEWS_COLUMNS),
+            read_csv_safe(REVIEW_FILE, REVIEW_COLUMNS),
+            read_csv_safe(REJECT_FILE, REJECT_COLUMNS),
+        ]
 
         if not args.dry_run:
+            latest_manifest = build_latest_fetch_manifest(
+                rows=rows,
+                previous_frames=previous_frames,
+                fetch_run_at=started_at,
+            )
             keep, review, reject = write_outputs(rows)
+            write_latest_fetch_manifest(latest_manifest)
 
         if not args.dry_run:
             append_fetch_log(
