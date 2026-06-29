@@ -105,6 +105,69 @@ class FetchTaxonomyTests(unittest.TestCase):
         )
 
 
+class LatestFetchManifestTests(unittest.TestCase):
+    def test_manifest_marks_new_news_id(self):
+        rows = pd.DataFrame(
+            [
+                {
+                    "news_id": "A",
+                    "source_id": "semiengineering",
+                    "title": "New Article",
+                    "url": "https://example.test/a",
+                    "published_at_gmt": "2026-06-29",
+                    "modified_at_gmt": "2026-06-29",
+                }
+            ]
+        )
+
+        manifest = fetch.build_latest_fetch_manifest(rows, [], "2026-06-29T00:00:00Z")
+
+        self.assertEqual(len(manifest), 1)
+        self.assertEqual(manifest.loc[0, "news_id"], "A")
+        self.assertEqual(manifest.loc[0, "change_status"], "new")
+
+    def test_manifest_omits_unchanged_existing_news_id(self):
+        row = {
+            "news_id": "A",
+            "source_id": "semiengineering",
+            "title": "Same Article",
+            "excerpt": "same",
+            "url": "https://example.test/a",
+            "published_at_gmt": "2026-06-29",
+            "modified_at_gmt": "2026-06-29",
+        }
+        rows = pd.DataFrame([row])
+
+        manifest = fetch.build_latest_fetch_manifest(
+            rows,
+            [pd.DataFrame([row])],
+            "2026-06-29T00:00:00Z",
+        )
+
+        self.assertTrue(manifest.empty)
+
+    def test_manifest_marks_updated_news_id(self):
+        old = {
+            "news_id": "A",
+            "source_id": "semiengineering",
+            "title": "Old Article",
+            "excerpt": "old",
+            "url": "https://example.test/a",
+            "published_at_gmt": "2026-06-29",
+            "modified_at_gmt": "2026-06-29",
+        }
+        new = {**old, "title": "Updated Article"}
+
+        manifest = fetch.build_latest_fetch_manifest(
+            pd.DataFrame([new]),
+            [pd.DataFrame([old])],
+            "2026-06-29T00:00:00Z",
+        )
+
+        self.assertEqual(len(manifest), 1)
+        self.assertEqual(manifest.loc[0, "change_status"], "updated")
+
+
 class DryRunTests(unittest.TestCase):
     def _patch_output_paths(self, tmp_path: Path):
         return [

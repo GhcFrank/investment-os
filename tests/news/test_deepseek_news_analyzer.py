@@ -107,6 +107,9 @@ def args_for(tmp_path: Path, **overrides) -> argparse.Namespace:
         "output_file": str(tmp_path / "analysis.csv"),
         "log_file": str(tmp_path / "analysis_log.csv"),
         "sleep_seconds": 0,
+        "news_ids_file": None,
+        "news_id_column": "news_id",
+        "skip_existing_attempts": False,
         "company_master_file": str(tmp_path / "company_master.csv"),
         "max_company_universe": 200,
     }
@@ -428,6 +431,94 @@ class DeepSeekCliTests(unittest.TestCase):
             analyze.assert_called_once()
             self.assertEqual(len(output), 1)
             self.assertEqual(output.loc[0, "status"], "ok")
+
+    def test_news_ids_file_allowlist_limits_articles(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            input_file = tmp_path / "review.csv"
+            output_file = tmp_path / "analysis.csv"
+            ids_file = tmp_path / "manifest.csv"
+            write_input(input_file, [article("A"), article("B"), article("C")])
+            pd.DataFrame([{"news_id": "B"}]).to_csv(ids_file, index=False)
+            result = normalize_analysis_result(
+                article=article("B"),
+                raw_result=raw_result(),
+                config=CONFIG,
+            )
+
+            with patch.object(cli, "load_deepseek_config", return_value=CONFIG):
+                with patch.object(cli, "load_deepseek_runtime_defaults", return_value=CONFIG):
+                    with patch.object(
+                        cli,
+                        "analyze_article_with_deepseek",
+                        return_value=result,
+                    ) as analyze:
+                        exit_code = cli.run_analysis(
+                            args_for(
+                                tmp_path,
+                                input_file=str(input_file),
+                                output_file=str(output_file),
+                                news_ids_file=str(ids_file),
+                            )
+                        )
+
+            self.assertEqual(exit_code, 0)
+            analyze.assert_called_once()
+            self.assertEqual(analyze.call_args.kwargs["article"]["news_id"], "B")
+
+    def test_empty_news_ids_file_exits_without_api_key(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            input_file = tmp_path / "review.csv"
+            output_file = tmp_path / "analysis.csv"
+            log_file = tmp_path / "analysis_log.csv"
+            ids_file = tmp_path / "manifest.csv"
+            write_input(input_file, [article("A")])
+            pd.DataFrame(columns=["news_id"]).to_csv(ids_file, index=False)
+
+            with patch.object(cli, "load_deepseek_runtime_defaults", return_value=CONFIG):
+                with patch.object(cli, "load_deepseek_config") as load_config:
+                    exit_code = cli.run_analysis(
+                        args_for(
+                            tmp_path,
+                            input_file=str(input_file),
+                            output_file=str(output_file),
+                            log_file=str(log_file),
+                            news_ids_file=str(ids_file),
+                        )
+                    )
+
+            self.assertEqual(exit_code, 0)
+            load_config.assert_not_called()
+            log = pd.read_csv(log_file, dtype=str)
+            self.assertEqual(log.loc[0, "status"], "skipped")
+            self.assertEqual(log.loc[0, "articles_analyzed"], "0")
+
+    def test_skip_existing_attempts_skips_failed_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            input_file = tmp_path / "review.csv"
+            output_file = tmp_path / "analysis.csv"
+            write_input(input_file, [article("B")])
+            pd.DataFrame([failed_result("B")], columns=ANALYSIS_COLUMNS).to_csv(
+                output_file,
+                index=False,
+            )
+
+            with patch.object(cli, "load_deepseek_config", return_value=CONFIG):
+                with patch.object(cli, "load_deepseek_runtime_defaults", return_value=CONFIG):
+                    with patch.object(cli, "analyze_article_with_deepseek") as analyze:
+                        exit_code = cli.run_analysis(
+                            args_for(
+                                tmp_path,
+                                input_file=str(input_file),
+                                output_file=str(output_file),
+                                skip_existing_attempts=True,
+                            )
+                        )
+
+            self.assertEqual(exit_code, 0)
+            analyze.assert_not_called()
 
     def test_force_override(self):
         with tempfile.TemporaryDirectory() as tmp:

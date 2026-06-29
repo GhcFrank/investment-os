@@ -119,6 +119,44 @@ def load_input_articles(path: Path) -> pd.DataFrame:
     return df.reindex(columns=INPUT_COLUMNS)
 
 
+def load_news_id_allowlist(path: Path, news_id_column: str = "news_id") -> list[str]:
+    if not path.exists():
+        raise FileNotFoundError(f"News IDs file does not exist: {path}")
+
+    try:
+        df = pd.read_csv(path, dtype=str)
+    except pd.errors.EmptyDataError:
+        return []
+
+    if news_id_column not in df.columns:
+        raise ValueError(f"News IDs file must contain {news_id_column} column.")
+
+    ids: list[str] = []
+    seen = set()
+    for value in df[news_id_column].fillna("").astype(str):
+        news_id = value.strip()
+        if news_id and news_id not in seen:
+            seen.add(news_id)
+            ids.append(news_id)
+
+    return ids
+
+
+def filter_articles_by_news_ids(
+    articles: pd.DataFrame,
+    news_ids: list[str] | None,
+) -> pd.DataFrame:
+    if news_ids is None:
+        return articles
+
+    if not news_ids:
+        return pd.DataFrame(columns=INPUT_COLUMNS)
+
+    allowed = set(news_ids)
+    mask = articles["news_id"].fillna("").astype(str).isin(allowed)
+    return articles[mask].copy().reindex(columns=INPUT_COLUMNS)
+
+
 def select_articles_to_analyze(
     articles: pd.DataFrame,
     existing: pd.DataFrame,
@@ -126,6 +164,7 @@ def select_articles_to_analyze(
     prompt_version: str,
     limit: int,
     force: bool = False,
+    skip_existing_attempts: bool = False,
 ) -> tuple[pd.DataFrame, pd.DataFrame, int]:
     existing_statuses = _existing_status_by_news_id(existing, model, prompt_version)
     selected_rows = []
@@ -134,6 +173,10 @@ def select_articles_to_analyze(
     for _, row in articles.iterrows():
         news_id = str(row.get("news_id", "") or "")
         existing_status = existing_statuses.get(news_id, "")
+
+        if existing_status and skip_existing_attempts and not force:
+            skipped_rows.append(row.to_dict())
+            continue
 
         if existing_status == "ok" and not force:
             skipped_rows.append(row.to_dict())
@@ -225,6 +268,13 @@ def run_analysis(args: argparse.Namespace) -> int:
         prompt_version = defaults["prompt_version"]
         limit = args.limit if args.limit is not None else defaults["analysis_limit"]
         articles = load_input_articles(input_file)
+        news_ids = None
+        if args.news_ids_file:
+            news_ids = load_news_id_allowlist(
+                Path(args.news_ids_file),
+                args.news_id_column,
+            )
+            articles = filter_articles_by_news_ids(articles, news_ids)
         existing = read_csv_safe(output_file, ANALYSIS_COLUMNS)
         company_universe = load_company_universe(
             company_master_file=args.company_master_file,
@@ -238,15 +288,21 @@ def run_analysis(args: argparse.Namespace) -> int:
             prompt_version=prompt_version,
             limit=limit,
             force=args.force,
+            skip_existing_attempts=args.skip_existing_attempts,
         )
         articles_skipped = len(skipped_ok)
 
         if args.dry_run:
+            skipped_label = (
+                "Skipped existing attempts"
+                if args.skip_existing_attempts
+                else "Skipped existing ok"
+            )
             print("Dry run only. No API calls will be made.")
             print(f"Loaded company universe: {company_universe_count} companies")
             print()
             print(f"To analyze: {len(selected)}")
-            print(f"Skipped existing ok: {articles_skipped}")
+            print(f"{skipped_label}: {articles_skipped}")
             print(f"Retrying previous failed: {retrying_previous_failed}")
             print()
             print("To analyze:")
@@ -254,12 +310,39 @@ def run_analysis(args: argparse.Namespace) -> int:
                 reason = row.get(SELECTION_REASON_COLUMN, "new")
                 print(f"- {row['news_id']} | {reason} | {row['title']}")
             print()
-            print("Skipped existing ok:")
+            print(f"{skipped_label}:")
             if skipped_ok.empty:
                 print("- none")
             else:
                 for _, row in skipped_ok.iterrows():
                     print(f"- {row['news_id']} | {row['title']}")
+            return 0
+
+        if selected.empty:
+            if not output_file.exists():
+                write_csv(
+                    pd.DataFrame(columns=ANALYSIS_COLUMNS),
+                    output_file,
+                    ANALYSIS_COLUMNS,
+                )
+            append_log(
+                log_file,
+                {
+                    "run_at": run_at,
+                    "status": "skipped",
+                    "articles_seen": len(articles),
+                    "articles_analyzed": 0,
+                    "articles_skipped": articles_skipped,
+                    "articles_failed": 0,
+                    "model": model,
+                    "prompt_version": prompt_version,
+                    "error_message": "",
+                },
+            )
+            print(
+                "DeepSeek analysis completed: analyzed=0, "
+                f"skipped={articles_skipped}, failed=0"
+            )
             return 0
 
         config = load_deepseek_config()
@@ -272,6 +355,7 @@ def run_analysis(args: argparse.Namespace) -> int:
             prompt_version=prompt_version,
             limit=limit,
             force=args.force,
+            skip_existing_attempts=args.skip_existing_attempts,
         )
         articles_skipped = len(skipped_ok)
         rows = []
@@ -372,6 +456,9 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--output-file", default=str(DEFAULT_OUTPUT_FILE))
     parser.add_argument("--log-file", default=str(DEFAULT_LOG_FILE))
     parser.add_argument("--sleep-seconds", type=float, default=1.0)
+    parser.add_argument("--news-ids-file", default=None)
+    parser.add_argument("--news-id-column", default="news_id")
+    parser.add_argument("--skip-existing-attempts", action="store_true")
     parser.add_argument("--company-master-file", default=str(DEFAULT_COMPANY_MASTER_FILE))
     parser.add_argument(
         "--max-company-universe",

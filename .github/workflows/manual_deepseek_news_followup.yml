@@ -1,0 +1,83 @@
+name: Manual DeepSeek News Follow-up
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Maximum number of Flash keep/watch articles to review"
+        default: "10"
+        required: false
+      decision_filter:
+        description: "Comma-separated decisions to review"
+        default: "keep,watch"
+        required: false
+      source_prompt_version:
+        description: "Flash source prompt version"
+        default: "deepseek_flash_preprocess_v1"
+        required: false
+
+permissions:
+  contents: write
+
+concurrency:
+  group: manual-deepseek-news-followup
+  cancel-in-progress: false
+
+jobs:
+  run-deepseek-news-followup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set Up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run DeepSeek Pro Follow-up
+        run: |
+          if [ -z "$DEEPSEEK_API_KEY" ]; then
+            echo "DEEPSEEK_API_KEY is not set; skipping manual DeepSeek Pro follow-up."
+            exit 0
+          fi
+
+          PYTHONPATH=src python src/news/review_keep_watch_with_deepseek.py \
+            --limit "${{ inputs.limit }}" \
+            --source-model deepseek-v4-flash \
+            --source-prompt-version "${{ inputs.source_prompt_version }}" \
+            --decision-filter "${{ inputs.decision_filter }}" \
+            --company-master-file data/master/company_master.csv \
+            --max-company-universe 50
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_BASE_URL: https://api.deepseek.com
+          DEEPSEEK_MODEL: deepseek-v4-pro
+          DEEPSEEK_PROMPT_VERSION: deepseek_pro_followup_v1
+          DEEPSEEK_THINKING: disabled
+          DEEPSEEK_MAX_OUTPUT_TOKENS: "1500"
+          DEEPSEEK_MAX_RETRIES: "2"
+          DEEPSEEK_RETRY_SLEEP_SECONDS: "2"
+
+      - name: Commit Follow-up Output
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add data/news/deepseek_news_followup.csv data/news/deepseek_news_followup_log.csv || true
+
+          if git diff --cached --quiet; then
+            echo "No DeepSeek follow-up updates to commit."
+          else
+            git commit -m "Update DeepSeek news follow-up"
+            git pull --rebase origin "$GITHUB_REF_NAME"
+            git push
+          fi

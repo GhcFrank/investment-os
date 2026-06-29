@@ -45,6 +45,51 @@ jobs:
         env:
           NEWS_USER_AGENT: InvestmentOS-NewsBot/1.0
 
+      - name: Run DeepSeek Flash News Preprocess
+        run: |
+          if [ -z "$DEEPSEEK_API_KEY" ]; then
+            echo "DEEPSEEK_API_KEY is not set; skipping DeepSeek Flash news preprocess."
+            PYTHONPATH=src python - <<'PY'
+          from pathlib import Path
+          import pandas as pd
+          from news.analyze_news_with_deepseek import LOG_COLUMNS, now_utc_iso, read_csv_safe, write_csv
+
+          path = Path("data/news/deepseek_news_analysis_log.csv")
+          existing = read_csv_safe(path, LOG_COLUMNS)
+          row = {
+              "run_at": now_utc_iso(),
+              "status": "skipped",
+              "articles_seen": 0,
+              "articles_analyzed": 0,
+              "articles_skipped": 0,
+              "articles_failed": 0,
+              "model": "deepseek-v4-flash",
+              "prompt_version": "deepseek_flash_preprocess_v1",
+              "error_message": "DEEPSEEK_API_KEY is not set; weekly Flash preprocess skipped.",
+          }
+          combined = pd.concat([existing, pd.DataFrame([row], columns=LOG_COLUMNS)], ignore_index=True)
+          write_csv(combined, path, LOG_COLUMNS)
+          PY
+            exit 0
+          fi
+
+          PYTHONPATH=src python src/news/analyze_news_with_deepseek.py \
+            --limit 20 \
+            --news-ids-file data/news/news_latest_fetch_manifest.csv \
+            --skip-existing-attempts \
+            --company-master-file data/master/company_master.csv \
+            --max-company-universe 50 || echo "DeepSeek Flash preprocess failed; continuing weekly email."
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_BASE_URL: https://api.deepseek.com
+          DEEPSEEK_MODEL: deepseek-v4-flash
+          DEEPSEEK_PROMPT_VERSION: deepseek_flash_preprocess_v1
+          DEEPSEEK_THINKING: disabled
+          DEEPSEEK_MAX_OUTPUT_TOKENS: "1500"
+          DEEPSEEK_NEWS_ANALYSIS_LIMIT: "20"
+          DEEPSEEK_MAX_RETRIES: "2"
+          DEEPSEEK_RETRY_SLEEP_SECONDS: "2"
+
       - name: Send Weekly News Email
         run: |
           PYTHONPATH=src python src/news/send_weekly_news_email.py

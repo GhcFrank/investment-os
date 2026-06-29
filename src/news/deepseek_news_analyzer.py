@@ -92,6 +92,7 @@ def load_deepseek_config() -> dict:
         "max_input_chars": _env_int("DEEPSEEK_MAX_INPUT_CHARS", 6000),
         "max_output_tokens": _env_int("DEEPSEEK_MAX_OUTPUT_TOKENS", 1500),
         "temperature": _env_float("DEEPSEEK_TEMPERATURE", 0.1),
+        "thinking": os.getenv("DEEPSEEK_THINKING", "").strip(),
         "max_retries": _env_int("DEEPSEEK_MAX_RETRIES", 2, minimum=0),
         "retry_sleep_seconds": _env_float(
             "DEEPSEEK_RETRY_SLEEP_SECONDS",
@@ -117,6 +118,7 @@ def load_deepseek_runtime_defaults() -> dict:
         "max_input_chars": _env_int("DEEPSEEK_MAX_INPUT_CHARS", 6000),
         "max_output_tokens": _env_int("DEEPSEEK_MAX_OUTPUT_TOKENS", 1500),
         "temperature": _env_float("DEEPSEEK_TEMPERATURE", 0.1),
+        "thinking": os.getenv("DEEPSEEK_THINKING", "").strip(),
         "max_retries": _env_int("DEEPSEEK_MAX_RETRIES", 2, minimum=0),
         "retry_sleep_seconds": _env_float(
             "DEEPSEEK_RETRY_SLEEP_SECONDS",
@@ -372,6 +374,7 @@ def analyze_article_with_deepseek(
                 max_tokens=int(config.get("max_output_tokens", 1500) or 1500),
                 temperature=float(config.get("temperature", 0.1) or 0.1),
                 response_format={"type": "json_object"},
+                **_thinking_kwargs(config),
             )
             content = _extract_response_content(response)
             parsed = parse_deepseek_json_response(content)
@@ -443,6 +446,13 @@ def _extract_response_content(response: Any) -> str:
         raise ValueError("empty_response")
 
     return str(content).strip()
+
+
+def _thinking_kwargs(config: dict) -> dict[str, object]:
+    thinking = str(config.get("thinking", "") or "").strip().lower()
+    if thinking == "disabled":
+        return {"extra_body": {"thinking": {"type": "disabled"}}}
+    return {}
 
 
 def is_retryable_deepseek_error(error: Exception | str) -> bool:
