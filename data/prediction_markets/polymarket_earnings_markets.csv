@@ -1,1 +1,2 @@
 date,market_id,event_id,slug,question,end_date,active,closed,outcomes,outcome_prices,volume,liquidity,url
+2026-07-03,2775419,660464,tsm-quarterly-earnings-gaap-eps-07-16-2026-3pt88,Will TSMC (TSM) beat quarterly earnings?,2026-07-16T13:00:00Z,True,False,"[""Yes"", ""No""]","[""0.895"", ""0.105""]",166.07066400000002,99.6988,https://polymarket.com/event/tsm-quarterly-earnings-gaap-eps-07-16-2026-3pt88
