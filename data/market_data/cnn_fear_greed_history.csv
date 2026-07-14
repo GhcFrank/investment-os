@@ -11,3 +11,4 @@ date,fear_greed_index,level,source,status,error_message,change_1d,change_5d,chan
 2026-07-09,,unknown,cnn_unofficial,failed,CNN Fear & Greed unavailable: HTTP 418 from CNN graphdata endpoint,,,,2026-07-09
 2026-07-10,,unknown,cnn_unofficial,failed,CNN Fear & Greed unavailable: HTTP 418 from CNN graphdata endpoint,,,,2026-07-10
 2026-07-13,,unknown,cnn_unofficial,failed,CNN Fear & Greed unavailable: HTTP 418 from CNN graphdata endpoint,,,,2026-07-13
+2026-07-14,,unknown,cnn_unofficial,failed,CNN Fear & Greed unavailable: HTTP 418 from CNN graphdata endpoint,,,,2026-07-14
