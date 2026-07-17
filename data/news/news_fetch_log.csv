@@ -13,3 +13,4 @@ news_backfill_20260625T210839Z,2026-06-25T21:08:39Z,2026-06-25T21:08:49Z,semieng
 news_backfill_20260625T211634Z,2026-06-25T21:16:34Z,2026-06-25T21:16:41Z,semiengineering,backfill,2026-06-18T21:16:34Z,2026-06-25T21:16:34Z,2,29,6,4,19,data/news/raw/semiengineering/backfill_20260625T211634Z.json,success,
 news_backfill_20260627T055922Z,2026-06-27T05:59:22Z,2026-06-27T05:59:28Z,semiengineering,backfill,2026-06-20T05:59:22Z,2026-06-27T05:59:22Z,2,29,6,5,18,data/news/raw/semiengineering/backfill_20260627T055922Z.json,success,
 news_backfill_20260629T145733Z,2026-06-29T14:57:33Z,2026-06-29T14:57:41Z,semiengineering,backfill,2026-06-22T14:57:33Z,2026-06-29T14:57:33Z,2,24,5,3,16,data/news/raw/semiengineering/backfill_20260629T145733Z.json,success,
+news_backfill_20260717T203423Z,2026-07-17T20:34:23Z,2026-07-17T20:34:31Z,semiengineering,backfill,2026-07-10T20:34:23Z,2026-07-17T20:34:23Z,3,25,6,6,13,data/news/raw/semiengineering/backfill_20260717T203423Z.json,success,
