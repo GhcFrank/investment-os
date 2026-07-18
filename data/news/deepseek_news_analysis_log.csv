@@ -10,3 +10,4 @@ run_at,status,articles_seen,articles_analyzed,articles_skipped,articles_failed,m
 2026-06-29T14:58:59Z,skipped,0,0,0,0,deepseek-v4-flash,deepseek_flash_preprocess_v1,
 2026-06-29T15:01:38Z,skipped,0,0,0,0,deepseek-v4-flash,deepseek_flash_preprocess_v1,
 2026-07-17T20:34:32Z,skipped,0,0,0,0,deepseek-v4-flash,deepseek_flash_preprocess_v1,DEEPSEEK_API_KEY is not set; weekly Flash preprocess skipped.
+2026-07-18T04:54:45Z,skipped,0,0,0,0,deepseek-v4-flash,deepseek_flash_preprocess_v1,DEEPSEEK_API_KEY is not set; weekly Flash preprocess skipped.
