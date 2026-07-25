@@ -45879,6 +45879,7 @@ term_id,name,slug,count,updated_at
 69427,mixed-precision GEMM,mixed-precision-gemm,1,2026-07-17T20:34:26Z
 69428,CUDA-core dequantization,cuda-core-dequantization,1,2026-07-17T20:34:26Z
 69429,cloud-scale LLM serving,cloud-scale-llm-serving,1,2026-07-17T20:34:26Z
+69430,ficonTEC Service,ficontec-service,1,2026-07-25T05:21:25Z
 69431,Skanska,skanska,1,2026-07-17T20:34:26Z
 69432,Nuvaton,nuvaton,1,2026-07-17T20:34:26Z
 69433,Dalian Jiaotong University,dalian-jiaotong-university,1,2026-07-17T20:34:26Z
@@ -45901,3 +45902,86 @@ term_id,name,slug,count,updated_at
 69451,UC Colorado,uc-colorado,1,2026-07-17T20:34:26Z
 69452,TU Munich; TU Ilmenau,tu-munich-tu-ilmenau,1,2026-07-17T20:34:26Z
 69453,semiconductor fab news,semiconductor-fab-news,1,2026-07-17T20:34:26Z
+69454,Endura Technologies,endura-technologies,1,2026-07-25T05:21:25Z
+69455,NANO Nuclear Energy,nano-nuclear-energy,1,2026-07-25T05:21:25Z
+69456,U.S. politics,u-s-politics,1,2026-07-25T05:21:25Z
+69458,serialization bugs,serialization-bugs,1,2026-07-25T05:21:25Z
+69466,thin-film patterning,thin-film-patterning,1,2026-07-25T05:21:25Z
+69467,Scaffold-Architected Lift-Off,scaffold-architected-lift-off,1,2026-07-25T05:21:25Z
+69468,SALO,salo,1,2026-07-25T05:21:25Z
+69469,two-photon polymerization,two-photon-polymerization,1,2026-07-25T05:21:25Z
+69470,conformal coatings,conformal-coatings,1,2026-07-25T05:21:25Z
+69471,Cornell Center for Materials Research,cornell-center-for-materials-research,1,2026-07-25T05:21:25Z
+69472,niobium arsenide,niobium-arsenide,1,2026-07-25T05:21:25Z
+69473,NbAs,nbas,1,2026-07-25T05:21:25Z
+69474,Weyl semimetal,weyl-semimetal,1,2026-07-25T05:21:25Z
+69475,thermomechanical nanomolding,thermomechanical-nanomolding,1,2026-07-25T05:21:25Z
+69476,topological materials,topological-materials,1,2026-07-25T05:21:25Z
+69477,surface-dominant conduction,surface-dominant-conduction,1,2026-07-25T05:21:25Z
+69478,CIMERA,cimera,1,2026-07-25T05:21:25Z
+69479,compute-in-interconnect,compute-in-interconnect,1,2026-07-25T05:21:25Z
+69480,reconfigurable precision,reconfigurable-precision,1,2026-07-25T05:21:25Z
+69481,inter-PE network,inter-pe-network,1,2026-07-25T05:21:25Z
+69482,Fraunhofer Institute for Integrated Systems and Device Technology IISB,fraunhofer-institute-for-integrated-systems-and-device-technology-iisb,1,2026-07-25T05:21:25Z
+69483,hyper-NA EUV,hyper-na-euv,1,2026-07-25T05:21:25Z
+69484,three-dimensional mask effects,three-dimensional-mask-effects,1,2026-07-25T05:21:25Z
+69485,split-pupil exposure,split-pupil-exposure,1,2026-07-25T05:21:25Z
+69486,dark-field masks,dark-field-masks,1,2026-07-25T05:21:25Z
+69487,low-index absorbers,low-index-absorbers,1,2026-07-25T05:21:25Z
+69488,image contrast,image-contrast,1,2026-07-25T05:21:25Z
+69489,M3D effects,m3d-effects,1,2026-07-25T05:21:25Z
+69490,Mask topography effects,mask-topography-effects,1,2026-07-25T05:21:25Z
+69491,Rigorous SMO,rigorous-smo,1,2026-07-25T05:21:25Z
+69492,High-NA,high-na,1,2026-07-25T05:21:25Z
+69493,Hyper-NA,hyper-na,1,2026-07-25T05:21:25Z
+69494,Light sources and illumination,light-sources-and-illumination,1,2026-07-25T05:21:25Z
+69495,IC interconnects,ic-interconnects,1,2026-07-25T05:21:25Z
+69496,graph transformers,graph-transformers,1,2026-07-25T05:21:25Z
+69497,transient glitches,transient-glitches,1,2026-07-25T05:21:25Z
+69498,DEVCOM Army Research Laboratory,devcom-army-research-laboratory,1,2026-07-25T05:21:25Z
+69499,roll-to-roll processing,roll-to-roll-processing,1,2026-07-25T05:21:25Z
+69500,reticle stitching,reticle-stitching,1,2026-07-25T05:21:25Z
+69501,Hypervision Surgical,hypervision-surgical,1,2026-07-25T05:21:25Z
+69502,silicon-proven IP,silicon-proven-ip,1,2026-07-25T05:21:25Z
+69503,digital design workflows,digital-design-workflows,1,2026-07-25T05:21:25Z
+69504,EDA work flows,eda-work-flows,1,2026-07-25T05:21:25Z
+69505,Visual Studio Code,visual-studio-code,1,2026-07-25T05:21:25Z
+69506,process emulation,process-emulation,1,2026-07-25T05:21:25Z
+69507,DRAM scaling,dram-scaling,1,2026-07-25T05:21:25Z
+69508,vertical bit line,vertical-bit-line,1,2026-07-25T05:21:25Z
+69509,storage capacitance,storage-capacitance,1,2026-07-25T05:21:25Z
+69510,semiconductor memory,semiconductor-memory,1,2026-07-25T05:21:25Z
+69511,hardware guardrails,hardware-guardrails,1,2026-07-25T05:21:25Z
+69512,performance throttling,performance-throttling,1,2026-07-25T05:21:25Z
+69513,L2 cache,l2-cache,1,2026-07-25T05:21:25Z
+69514,L2 latency,l2-latency,1,2026-07-25T05:21:25Z
+69515,L2 bandwidth,l2-bandwidth,1,2026-07-25T05:21:25Z
+69516,cache way masking,cache-way-masking,1,2026-07-25T05:21:25Z
+69517,credit-based rate limiting,credit-based-rate-limiting,1,2026-07-25T05:21:25Z
+69518,latency insertion,latency-insertion,1,2026-07-25T05:21:25Z
+69519,bank arbitration,bank-arbitration,1,2026-07-25T05:21:25Z
+69520,AI performance control,ai-performance-control,1,2026-07-25T05:21:25Z
+69521,MICRO 2026,micro-2026,1,2026-07-25T05:21:25Z
+69522,reliability degradation,reliability-degradation,1,2026-07-25T05:21:25Z
+69523,wireless testing,wireless-testing,1,2026-07-25T05:21:25Z
+69524,network testing,network-testing,1,2026-07-25T05:21:25Z
+69525,photonics design,photonics-design,1,2026-07-25T05:21:25Z
+69526,optical measurements,optical-measurements,1,2026-07-25T05:21:25Z
+69527,optical channels,optical-channels,1,2026-07-25T05:21:25Z
+69528,boundary element,boundary-element,1,2026-07-25T05:21:25Z
+69530,Paras Defence and ‌Space Technologies,paras-defence-and-space-technologies,1,2026-07-25T05:21:25Z
+69531,Precision Innovations,precision-innovations,1,2026-07-25T05:21:25Z
+69532,Elio,elio,1,2026-07-25T05:21:25Z
+69533,Infinity Artificial Intelligence Institute,infinity-artificial-intelligence-institute,1,2026-07-25T05:21:25Z
+69534,CuspAI,cuspai,1,2026-07-25T05:21:25Z
+69535,Circular Materials,circular-materials,1,2026-07-25T05:21:25Z
+69537,California Memory Technologies,california-memory-technologies,1,2026-07-25T05:21:25Z
+69539,Advanced Vision Solutions,advanced-vision-solutions,1,2026-07-25T05:21:25Z
+69540,Hugging Face,hugging-face,1,2026-07-25T05:21:25Z
+69541,Suno,suno,1,2026-07-25T05:21:25Z
+69542,Gemini,gemini,1,2026-07-25T05:21:25Z
+69543,Standard Motor Products,standard-motor-products,1,2026-07-25T05:21:25Z
+69544,BC Hydro,bc-hydro,1,2026-07-25T05:21:25Z
+69548,Zhongji Innolight,zhongji-innolight,1,2026-07-25T05:21:25Z
+69549,Connected Vehicle Security Act,connected-vehicle-security-act,1,2026-07-25T05:21:25Z
+69550,Mark Tehranipoor,mark-tehranipoor,1,2026-07-25T05:21:25Z
