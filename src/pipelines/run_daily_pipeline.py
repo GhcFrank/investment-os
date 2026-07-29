@@ -10,31 +10,39 @@ run_daily_pipeline.py
    -> src/market_data/update_prices.py
    -> 输出 data/market_data/prices.csv
 
-2. 更新市场情绪指标
+2. 更新 GICS 一级板块 ETF 市场价格
+   -> src/market_data/update_sector_etf_prices.py
+   -> 输出 data/market_data/sector_etf_prices.csv
+
+3. 更新 GICS 一级板块 ETF 官方基金历史
+   -> src/market_data/update_sector_etf_fund_history.py
+   -> 输出 data/market_data/sector_etf_fund_history/<configured-filename>.csv
+
+4. 更新市场情绪指标
    -> src/market_data/update_sentiment_indicators.py
    -> 输出 data/market_data/vix.csv
    -> 输出 data/market_data/cnn_fear_greed.csv
 
-3. 计算板块强度
+5. 计算板块强度
    -> src/signals/build_sector_strength.py
    -> 输出 data/signals/sector_strength.csv
    -> 更新 data/signals/sector_strength_history.csv
 
-4. 生成每日市场信号
+6. 生成每日市场信号
    -> src/signals/daily_market_monitor.py
    -> 输出 data/signals/daily_market_signals.csv
 
-5. 检查明天是否有财报
+7. 检查明天是否有财报
    -> src/events/check_earnings_calendar.py
    -> 如果命中，发送邮件提醒
    -> 更新 data/events/earnings_alert_history.csv
 
-6. 检查 SEC EDGAR 重要 filing
+8. 检查 SEC EDGAR 重要 filing
    -> src/events/check_sec_filings.py
    -> 如果发现新 filing，发送邮件提醒
    -> 更新 data/events/sec_filings.csv
 
-7. 更新 Polymarket earnings 预测数据
+9. 更新 Polymarket earnings 预测数据
    -> src/prediction_markets/update_polymarket_earnings_markets.py
    -> src/prediction_markets/match_polymarket_earnings.py
    -> src/prediction_markets/update_polymarket_predictions.py
@@ -68,6 +76,10 @@ if str(SRC_DIR) not in sys.path:
 
 from utils.send_email import send_email
 from market_data.sentiment_summary import build_sentiment_email_section
+from market_data.update_sector_etf_fund_history import (
+    run_sector_etf_fund_history_update,
+)
+from market_data.update_sector_etf_prices import run_sector_etf_price_update
 
 
 def run_script(script_path: Path) -> None:
@@ -113,6 +125,32 @@ def run_script(script_path: Path) -> None:
         )
 
 
+def run_sector_etf_price_step() -> None:
+    """
+    Update Yahoo sector ETF market prices in-process.
+    """
+
+    print("=" * 80)
+    print("Running: GICS sector ETF Yahoo OHLCV prices")
+    print("=" * 80)
+    summary = run_sector_etf_price_update()
+    print(summary.format())
+    print("Completed: GICS sector ETF Yahoo OHLCV prices")
+
+
+def run_sector_etf_fund_history_step() -> None:
+    """
+    Update State Street NAV, shares, and total-net-assets history in-process.
+    """
+
+    print("=" * 80)
+    print("Running: GICS sector ETF State Street fund history")
+    print("=" * 80)
+    summary = run_sector_etf_fund_history_update()
+    print(summary.format())
+    print("Completed: GICS sector ETF State Street fund history")
+
+
 def main() -> None:
     """
     每日 pipeline 主入口。
@@ -122,8 +160,21 @@ def main() -> None:
     print(f"Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Project root: {BASE_DIR}\n")
 
-    scripts = [
-        BASE_DIR / "src" / "market_data" / "update_prices.py",
+    ordinary_prices_script = (
+        BASE_DIR / "src" / "market_data" / "update_prices.py"
+    )
+    if not ordinary_prices_script.exists():
+        raise FileNotFoundError(
+            f"Cannot find script: {ordinary_prices_script}"
+        )
+    run_script(ordinary_prices_script)
+
+    # Sector ETF collection is deliberately separate from the existing AI
+    # theme/subtheme strength data and runs before downstream signal steps.
+    run_sector_etf_price_step()
+    run_sector_etf_fund_history_step()
+
+    remaining_scripts = [
         BASE_DIR / "src" / "market_data" / "update_sentiment_indicators.py",
         BASE_DIR / "src" / "signals" / "build_sector_strength.py",
         BASE_DIR / "src" / "signals" / "daily_market_monitor.py",
@@ -135,7 +186,7 @@ def main() -> None:
         BASE_DIR / "src" / "prediction_markets" / "check_polymarket_prediction_signals.py",
     ]
 
-    for script in scripts:
+    for script in remaining_scripts:
         if not script.exists():
             raise FileNotFoundError(
                 f"Cannot find script: {script}"
@@ -159,6 +210,9 @@ def main() -> None:
             "Generated files:\n"
             "- data/market_data/prices.csv\n"
             "- data/market_data/prices_history.csv\n"
+            "- data/market_data/sector_etf_prices.csv\n"
+            "- data/market_data/sector_etf_fund_history/"
+            "<configured-filename>.csv\n"
             "- data/market_data/vix.csv\n"
             "- data/market_data/vix_history.csv\n"
             "- data/market_data/cnn_fear_greed.csv\n"

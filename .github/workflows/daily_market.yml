@@ -47,6 +47,13 @@ jobs:
 
           git add data/market_data/prices.csv
           git add data/market_data/prices_history.csv
+          git add data/market_data/sector_etf_prices.csv
+          for file in data/market_data/sector_etf_fund_history/*.csv
+          do
+            if [ -f "$file" ]; then
+              git add "$file"
+            fi
+          done
           git add data/market_data/vix.csv
           git add data/market_data/vix_history.csv
           git add data/market_data/cnn_fear_greed.csv

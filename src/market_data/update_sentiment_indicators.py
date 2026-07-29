@@ -16,6 +16,7 @@ import pandas as pd
 import requests
 import yfinance as yf
 
+from utils.csv_utils import atomic_write_csv
 from utils.date_utils import today_et_str
 
 
@@ -90,16 +91,7 @@ def read_csv(path: Path, columns: list[str]) -> pd.DataFrame:
 
 
 def write_csv(df: pd.DataFrame, path: Path, columns: list[str]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    output = df.copy()
-
-    for column in columns:
-        if column not in output.columns:
-            output[column] = ""
-
-    temp_path = path.with_name(f".{path.name}.tmp")
-    output.reindex(columns=columns).to_csv(temp_path, index=False, encoding="utf-8")
-    temp_path.replace(path)
+    atomic_write_csv(df, path, columns)
 
 
 def format_number(value: object) -> str:

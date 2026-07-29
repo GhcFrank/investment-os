@@ -10,6 +10,8 @@ myInvestmentEnv/
 
 # Generated data
 data/market_data/fundamentals.csv
+data/market_data/sector_etf_fund_history/*.xls
+data/market_data/sector_etf_fund_history/*.xlsx
 data/news/raw/*
 !data/news/raw/.gitkeep
 
