@@ -10,39 +10,48 @@ run_daily_pipeline.py
    -> src/market_data/update_prices.py
    -> 输出 data/market_data/prices.csv
 
-2. 更新 GICS 一级板块 ETF 市场价格
-   -> src/market_data/update_sector_etf_prices.py
-   -> 输出 data/market_data/sector_etf_prices.csv
-
-3. 更新 GICS 一级板块 ETF 官方基金历史
+2. 更新 GICS 一级板块 ETF 官方基金历史
    -> src/market_data/update_sector_etf_fund_history.py
    -> 输出 data/market_data/sector_etf_fund_history/<configured-filename>.csv
 
-4. 更新市场情绪指标
+3. 更新 GICS 一级板块 ETF 市场价格
+   -> src/market_data/update_sector_etf_prices.py
+   -> 输出 data/market_data/sector_etf_prices.csv
+
+4. 构建 GICS 一级板块 ETF 250/90/30 自然日复权价格涨幅
+   -> src/signals/build_sector_etf_metrics.py
+   -> 输出 data/signals/sector_etf_metrics/<configured-filename>.csv
+
+5. 构建 GICS 一级板块 ETF 每日排名并发送邮件
+   -> src/signals/build_sector_etf_rankings.py
+   -> 输出 data/signals/sector_etf_daily_rankings.csv
+   -> 更新 data/signals/sector_etf_ranking_email_log.csv
+
+6. 更新市场情绪指标
    -> src/market_data/update_sentiment_indicators.py
    -> 输出 data/market_data/vix.csv
    -> 输出 data/market_data/cnn_fear_greed.csv
 
-5. 计算板块强度
+7. 计算板块强度
    -> src/signals/build_sector_strength.py
    -> 输出 data/signals/sector_strength.csv
    -> 更新 data/signals/sector_strength_history.csv
 
-6. 生成每日市场信号
+8. 生成每日市场信号
    -> src/signals/daily_market_monitor.py
    -> 输出 data/signals/daily_market_signals.csv
 
-7. 检查明天是否有财报
+9. 检查明天是否有财报
    -> src/events/check_earnings_calendar.py
    -> 如果命中，发送邮件提醒
    -> 更新 data/events/earnings_alert_history.csv
 
-8. 检查 SEC EDGAR 重要 filing
+10. 检查 SEC EDGAR 重要 filing
    -> src/events/check_sec_filings.py
    -> 如果发现新 filing，发送邮件提醒
    -> 更新 data/events/sec_filings.csv
 
-9. 更新 Polymarket earnings 预测数据
+11. 更新 Polymarket earnings 预测数据
    -> src/prediction_markets/update_polymarket_earnings_markets.py
    -> src/prediction_markets/match_polymarket_earnings.py
    -> src/prediction_markets/update_polymarket_predictions.py
@@ -80,6 +89,10 @@ from market_data.update_sector_etf_fund_history import (
     run_sector_etf_fund_history_update,
 )
 from market_data.update_sector_etf_prices import run_sector_etf_price_update
+from signals.build_sector_etf_metrics import run_sector_etf_metrics_update
+from signals.build_sector_etf_rankings import (
+    run_sector_etf_daily_ranking,
+)
 
 
 def run_script(script_path: Path) -> None:
@@ -125,7 +138,7 @@ def run_script(script_path: Path) -> None:
         )
 
 
-def run_sector_etf_price_step() -> None:
+def run_sector_etf_price_step():
     """
     Update Yahoo sector ETF market prices in-process.
     """
@@ -136,9 +149,10 @@ def run_sector_etf_price_step() -> None:
     summary = run_sector_etf_price_update()
     print(summary.format())
     print("Completed: GICS sector ETF Yahoo OHLCV prices")
+    return summary
 
 
-def run_sector_etf_fund_history_step() -> None:
+def run_sector_etf_fund_history_step():
     """
     Update State Street NAV, shares, and total-net-assets history in-process.
     """
@@ -149,6 +163,48 @@ def run_sector_etf_fund_history_step() -> None:
     summary = run_sector_etf_fund_history_update()
     print(summary.format())
     print("Completed: GICS sector ETF State Street fund history")
+    return summary
+
+
+def run_sector_etf_metrics_step():
+    """
+    Rebuild local calendar-day adjusted-close returns in-process.
+    """
+
+    print("=" * 80)
+    print("Running: GICS sector ETF adjusted-close metrics")
+    print("=" * 80)
+    summary = run_sector_etf_metrics_update()
+    print(summary.format())
+    if (
+        summary.failed
+        or summary.succeeded != summary.configured_etfs
+    ):
+        raise RuntimeError(
+            "Sector ETF metrics were incomplete; rankings and email are "
+            "blocked"
+        )
+    print("Completed: GICS sector ETF adjusted-close metrics")
+    return summary
+
+
+def run_sector_etf_rankings_step():
+    """
+    Build the latest same-date rankings and send the idempotent email.
+    """
+
+    print("=" * 80)
+    print("Running: GICS sector ETF daily rankings and email")
+    print("=" * 80)
+    summary = run_sector_etf_daily_ranking(send_email_message=True)
+    print(summary.format())
+    if summary.email_status == "error":
+        raise RuntimeError(
+            "Sector ETF rankings were saved, but the ranking email failed: "
+            f"{summary.email_error}"
+        )
+    print("Completed: GICS sector ETF daily rankings and email")
+    return summary
 
 
 def main() -> None:
@@ -171,8 +227,10 @@ def main() -> None:
 
     # Sector ETF collection is deliberately separate from the existing AI
     # theme/subtheme strength data and runs before downstream signal steps.
-    run_sector_etf_price_step()
     run_sector_etf_fund_history_step()
+    run_sector_etf_price_step()
+    run_sector_etf_metrics_step()
+    run_sector_etf_rankings_step()
 
     remaining_scripts = [
         BASE_DIR / "src" / "market_data" / "update_sentiment_indicators.py",
@@ -213,6 +271,10 @@ def main() -> None:
             "- data/market_data/sector_etf_prices.csv\n"
             "- data/market_data/sector_etf_fund_history/"
             "<configured-filename>.csv\n"
+            "- data/signals/sector_etf_metrics/"
+            "<configured-filename>.csv\n"
+            "- data/signals/sector_etf_daily_rankings.csv\n"
+            "- data/signals/sector_etf_ranking_email_log.csv\n"
             "- data/market_data/vix.csv\n"
             "- data/market_data/vix_history.csv\n"
             "- data/market_data/cnn_fear_greed.csv\n"

@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 
 import pandas as pd
@@ -15,9 +16,17 @@ def atomic_write_csv(
     df: pd.DataFrame,
     path: Path,
     columns: list[str],
+    *,
+    float_format: str | None = None,
+    na_rep: str = "",
+    lineterminator: str | None = None,
+    validate_temp_file: Callable[[Path], None] | None = None,
 ) -> None:
     """
     Write a CSV with a stable schema via a same-directory atomic replace.
+
+    An optional validator runs after the temporary file is complete and before
+    it replaces the target, so a failed validation leaves the old file intact.
     """
 
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -40,7 +49,16 @@ def atomic_write_csv(
     temp_file.close()
 
     try:
-        output.to_csv(temp_path, index=False, encoding="utf-8")
+        output.to_csv(
+            temp_path,
+            index=False,
+            encoding="utf-8",
+            float_format=float_format,
+            na_rep=na_rep,
+            lineterminator=lineterminator,
+        )
+        if validate_temp_file is not None:
+            validate_temp_file(temp_path)
         target_mode = (
             path.stat().st_mode & 0o777
             if path.exists()

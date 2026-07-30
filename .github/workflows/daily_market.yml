@@ -62,6 +62,20 @@ jobs:
           git add data/signals/sector_strength.csv
           git add data/signals/sector_strength_history.csv
           git add data/signals/daily_market_signals.csv
+          for file in data/signals/sector_etf_metrics/*.csv
+          do
+            if [ -f "$file" ]; then
+              git add "$file"
+            fi
+          done
+          for file in \
+            data/signals/sector_etf_daily_rankings.csv \
+            data/signals/sector_etf_ranking_email_log.csv
+          do
+            if [ -f "$file" ]; then
+              git add "$file"
+            fi
+          done
           git add data/events/earnings_calendar.csv
           git add data/events/earnings_alert_history.csv
           git add data/events/ir_events.csv
