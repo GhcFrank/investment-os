@@ -1,9 +1,14 @@
+import io
 import unittest
+from contextlib import redirect_stdout
 from unittest.mock import MagicMock, patch
 
 from market_data import update_sector_etf_prices as sector_prices
 from market_data.update_sector_etf_fund_history import (
     SectorETFFundHistorySummary,
+)
+from market_data.update_ishares_etf_fund_history import (
+    ISharesETFFundHistorySummary,
 )
 from market_data.update_sector_etf_prices import (
     SectorETFPriceUpdateSummary,
@@ -18,8 +23,8 @@ class DailyPipelineSectorETFTests(unittest.TestCase):
     def test_strict_sector_order_and_partial_fund_failure_continues(self):
         events = []
         price_summary = SectorETFPriceUpdateSummary(
-            configured_etfs=11,
-            price_tickers_succeeded=11,
+            configured_etfs=13,
+            price_tickers_succeeded=13,
         )
         fund_summary = SectorETFFundHistorySummary(
             configured_etfs=11,
@@ -36,12 +41,23 @@ class DailyPipelineSectorETFTests(unittest.TestCase):
             mode="daily",
             errors={"XLY": "temporary failure"},
         )
+        ishares_summary = ISharesETFFundHistorySummary(
+            configured_etfs=2,
+            requested_etfs=2,
+            succeeded=1,
+            failed=1,
+            files_written=1,
+            files_unchanged=0,
+            rows_inserted=1,
+            rows_updated=0,
+            errors={"IGV": "temporary failure"},
+        )
         metrics_summary = SectorETFMetricsUpdateSummary(
-            configured_etfs=11,
-            succeeded=11,
+            configured_etfs=13,
+            succeeded=13,
             failed=0,
             files_written=1,
-            files_unchanged=10,
+            files_unchanged=12,
         )
         ranking_summary = MagicMock(
             email_status="success",
@@ -59,6 +75,10 @@ class DailyPipelineSectorETFTests(unittest.TestCase):
         def record_fund_update():
             events.append("state_street_fund_history")
             return fund_summary
+
+        def record_ishares_update():
+            events.append("ishares_fund_history")
+            return ishares_summary
 
         def record_metrics_update():
             events.append("sector_etf_metrics")
@@ -83,6 +103,11 @@ class DailyPipelineSectorETFTests(unittest.TestCase):
             ),
             patch.object(
                 pipeline,
+                "run_ishares_etf_fund_history_update",
+                side_effect=record_ishares_update,
+            ),
+            patch.object(
+                pipeline,
                 "run_sector_etf_metrics_update",
                 side_effect=record_metrics_update,
             ),
@@ -101,10 +126,11 @@ class DailyPipelineSectorETFTests(unittest.TestCase):
             pipeline.main()
 
         self.assertEqual(
-            events[:6],
+            events[:7],
             [
                 "update_prices.py",
                 "state_street_fund_history",
+                "ishares_fund_history",
                 "yahoo_sector_prices",
                 "sector_etf_metrics",
                 "sector_etf_rankings_email",
@@ -126,12 +152,35 @@ class DailyPipelineSectorETFTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "missing adj_close"):
                 pipeline.run_sector_etf_metrics_step()
 
+    def test_metrics_step_logs_trading_day_horizons(self):
+        complete = SectorETFMetricsUpdateSummary(
+            configured_etfs=13,
+            succeeded=13,
+            failed=0,
+            files_written=0,
+            files_unchanged=13,
+        )
+        output = io.StringIO()
+        with (
+            patch.object(
+                pipeline,
+                "run_sector_etf_metrics_update",
+                return_value=complete,
+            ),
+            redirect_stdout(output),
+        ):
+            pipeline.run_sector_etf_metrics_step()
+        self.assertIn(
+            "ETF return horizons: 30/90/250 trading days",
+            output.getvalue(),
+        )
+
     def test_incomplete_metrics_block_rankings(self):
         incomplete = SectorETFMetricsUpdateSummary(
-            configured_etfs=11,
-            succeeded=10,
+            configured_etfs=13,
+            succeeded=12,
             failed=1,
-            files_written=10,
+            files_written=12,
             files_unchanged=0,
             errors={"XLF": "write failed"},
         )
@@ -155,6 +204,14 @@ class DailyPipelineSectorETFTests(unittest.TestCase):
                 pipeline,
                 "run_sector_etf_fund_history_update",
                 return_value=fund_summary,
+            ),
+            patch.object(
+                pipeline,
+                "run_ishares_etf_fund_history_update",
+                return_value=MagicMock(
+                    failed=0,
+                    format=lambda: "ishares summary",
+                ),
             ),
             patch.object(
                 pipeline,
@@ -189,6 +246,14 @@ class DailyPipelineSectorETFTests(unittest.TestCase):
                 pipeline,
                 "run_sector_etf_fund_history_update",
                 return_value=fund_summary,
+            ),
+            patch.object(
+                pipeline,
+                "run_ishares_etf_fund_history_update",
+                return_value=MagicMock(
+                    failed=0,
+                    format=lambda: "ishares summary",
+                ),
             ),
             patch.object(
                 pipeline,

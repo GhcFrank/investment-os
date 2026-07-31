@@ -95,6 +95,8 @@ class StateStreetURLTests(unittest.TestCase):
         xlre = fund_history.build_state_street_nav_history_url(config, "xlre")
         self.assertTrue(xlf.endswith("navhist-us-en-xlf.xlsx"))
         self.assertTrue(xlre.endswith("navhist-us-en-xlre.xlsx"))
+        with self.assertRaisesRegex(ValueError, "not configured"):
+            fund_history.build_state_street_nav_history_url(config, "SOXX")
 
     def test_configured_output_paths_use_descriptive_safe_basenames(self):
         config = load_sector_etf_config()
@@ -103,13 +105,15 @@ class StateStreetURLTests(unittest.TestCase):
                 Path("/tmp/history"),
                 etf,
             ).name
-            for etf in config.etfs
+            for etf in config.state_street_etfs
         }
         self.assertEqual(paths["XLC"], "xlc_communication_services.csv")
         self.assertEqual(paths["XLF"], "xlf_finance.csv")
         self.assertEqual(paths["XLK"], "xlk_information_technology.csv")
         self.assertEqual(paths["XLRE"], "xlre_real_estate.csv")
         self.assertEqual(len(set(paths.values())), 11)
+        self.assertNotIn("SOXX", paths)
+        self.assertNotIn("IGV", paths)
 
 
 class StateStreetParserTests(unittest.TestCase):

@@ -1,5 +1,5 @@
 """
-Build auditable calendar-day adjusted-close returns for sector ETFs.
+Build auditable trading-day adjusted-close returns for sector ETFs.
 
 The module is intentionally local-only: it reads the Yahoo price history that
 the market-data step has already written and never downloads data itself.
@@ -42,15 +42,15 @@ REQUIRED_PRICE_COLUMNS = ["date", "ticker", "adj_close"]
 METRICS_COLUMNS = [
     "date",
     "adj_close",
-    "reference_date_250d",
-    "reference_adj_close_250d",
-    "adj_close_return_250d",
-    "reference_date_90d",
-    "reference_adj_close_90d",
-    "adj_close_return_90d",
-    "reference_date_30d",
-    "reference_adj_close_30d",
-    "adj_close_return_30d",
+    "reference_date_250td",
+    "reference_adj_close_250td",
+    "adj_close_return_250td",
+    "reference_date_90td",
+    "reference_adj_close_90td",
+    "adj_close_return_90td",
+    "reference_date_30td",
+    "reference_adj_close_30td",
+    "adj_close_return_30td",
 ]
 
 
@@ -65,9 +65,9 @@ class SectorETFMetricsResult:
     rows: int
     earliest_date: str
     latest_date: str
-    return_250d_non_null: int
-    return_90d_non_null: int
-    return_30d_non_null: int
+    return_250td_non_null: int
+    return_90td_non_null: int
+    return_30td_non_null: int
     file_written: bool
 
 
@@ -94,9 +94,9 @@ class SectorETFMetricsUpdateSummary:
             lines.append(
                 f"- {result.ticker}: rows={result.rows}, "
                 f"range={result.earliest_date}..{result.latest_date}, "
-                f"250d={result.return_250d_non_null}, "
-                f"90d={result.return_90d_non_null}, "
-                f"30d={result.return_30d_non_null}, "
+                f"250td={result.return_250td_non_null}, "
+                f"90td={result.return_90td_non_null}, "
+                f"30td={result.return_30td_non_null}, "
                 f"written={result.file_written}, "
                 f"file={result.output_path.name}"
             )
@@ -262,82 +262,90 @@ def load_sector_etf_prices(
     )
 
 
-def calculate_calendar_day_adj_close_return(
+def calculate_trading_day_adj_close_return(
     prices: pd.DataFrame,
-    horizon_days: int,
+    horizon_trading_days: int,
 ) -> pd.DataFrame:
     """
-    Find the last trading date on/before each calendar-day target.
+    Calculate one return horizon from the ETF's own observed price rows.
 
-    A backward ``merge_asof`` performs the lookup without scanning the full
-    price history once per row.
+    Row ``i`` uses row ``i - horizon_trading_days`` as its reference. No
+    calendar, business-day approximation, or other ticker's observations are
+    involved.
     """
 
     if (
-        isinstance(horizon_days, bool)
-        or not isinstance(horizon_days, int)
-        or horizon_days <= 0
+        isinstance(horizon_trading_days, bool)
+        or not isinstance(horizon_trading_days, int)
+        or horizon_trading_days <= 0
     ):
-        raise ValueError("horizon_days must be a positive integer")
+        raise ValueError(
+            "horizon_trading_days must be a positive integer"
+        )
     missing_columns = [
         column for column in ("date", "adj_close") if column not in prices
     ]
     if missing_columns:
         raise SectorETFMetricsValidationError(
-            "Calendar-day return input missing column(s): "
+            "Trading-day return input missing column(s): "
             + ", ".join(missing_columns)
         )
+
+    if "ticker" in prices:
+        tickers = (
+            prices["ticker"].fillna("").astype(str).str.strip().str.upper()
+        )
+        if tickers.eq("").any() or tickers.nunique() != 1:
+            raise SectorETFMetricsValidationError(
+                "Trading-day return input must contain exactly one ticker"
+            )
 
     history = prices.loc[:, ["date", "adj_close"]].copy()
     history["date"] = _parse_price_dates(
         history["date"],
-        context="calendar-day return input",
+        context="trading-day return input",
     )
     history["adj_close"] = pd.to_numeric(
         history["adj_close"],
-        errors="raise",
+        errors="coerce",
     ).astype(float)
+    price_values = history["adj_close"].to_numpy(
+        dtype=float,
+        na_value=np.nan,
+    )
+    if (
+        history["adj_close"].isna().any()
+        or not np.isfinite(price_values).all()
+        or (history["adj_close"] <= 0).any()
+    ):
+        raise SectorETFMetricsValidationError(
+            "Trading-day return input adj_close values must be finite and "
+            "positive"
+        )
     history = history.sort_values("date", kind="stable").reset_index(drop=True)
     if history["date"].duplicated().any():
         raise SectorETFMetricsValidationError(
-            "Calendar-day return input contains duplicate dates"
+            "Trading-day return input contains duplicate dates"
         )
 
-    reference_date_column = f"reference_date_{horizon_days}d"
-    reference_price_column = f"reference_adj_close_{horizon_days}d"
-    return_column = f"adj_close_return_{horizon_days}d"
-    requests = history.copy()
-    requests["target_date"] = requests["date"] - pd.Timedelta(
-        days=horizon_days
-    )
-    lookup = history.rename(
-        columns={
-            "date": reference_date_column,
-            "adj_close": reference_price_column,
+    suffix = f"{horizon_trading_days}td"
+    reference_date_column = f"reference_date_{suffix}"
+    reference_price_column = f"reference_adj_close_{suffix}"
+    return_column = f"adj_close_return_{suffix}"
+    reference_dates = history["date"].shift(horizon_trading_days)
+    reference_prices = history["adj_close"].shift(horizon_trading_days)
+    returns = history["adj_close"] / reference_prices - 1.0
+    return pd.DataFrame(
+        {
+            reference_date_column: reference_dates,
+            reference_price_column: reference_prices,
+            return_column: returns,
         }
     )
-    merged = pd.merge_asof(
-        requests,
-        lookup,
-        left_on="target_date",
-        right_on=reference_date_column,
-        direction="backward",
-        allow_exact_matches=True,
-    )
-    merged[return_column] = (
-        merged["adj_close"] / merged[reference_price_column] - 1.0
-    )
-    return merged[
-        [
-            reference_date_column,
-            reference_price_column,
-            return_column,
-        ]
-    ]
 
 
 def build_one_sector_etf_metrics(prices: pd.DataFrame) -> pd.DataFrame:
-    """Build all configured calendar-day horizons for one ETF."""
+    """Build all configured trading-day horizons for one ETF."""
 
     normalized = validate_sector_etf_prices(prices)
     tickers = normalized["ticker"].unique()
@@ -350,16 +358,18 @@ def build_one_sector_etf_metrics(prices: pd.DataFrame) -> pd.DataFrame:
         drop=True
     )
     output = normalized.loc[:, ["date", "adj_close"]].copy()
-    for horizon_days in SECTOR_ETF_RETURN_HORIZONS:
-        horizon_metrics = calculate_calendar_day_adj_close_return(
+    for horizon_trading_days in SECTOR_ETF_RETURN_HORIZONS:
+        horizon_metrics = calculate_trading_day_adj_close_return(
             normalized,
-            horizon_days,
+            horizon_trading_days,
         )
         output = pd.concat([output, horizon_metrics], axis=1)
 
     output["date"] = output["date"].dt.strftime("%Y-%m-%d")
-    for horizon_days in SECTOR_ETF_RETURN_HORIZONS:
-        reference_column = f"reference_date_{horizon_days}d"
+    for horizon_trading_days in SECTOR_ETF_RETURN_HORIZONS:
+        reference_column = (
+            f"reference_date_{horizon_trading_days}td"
+        )
         output[reference_column] = output[reference_column].dt.strftime(
             "%Y-%m-%d"
         )
@@ -376,13 +386,13 @@ def build_all_sector_etf_metrics(
 
     normalized = validate_sector_etf_prices(
         prices,
-        expected_tickers={etf.ticker for etf in config.etfs},
+        expected_tickers={etf.ticker for etf in config.leadership_etfs},
     )
     return {
         etf.ticker: build_one_sector_etf_metrics(
             normalized.loc[normalized["ticker"].eq(etf.ticker)]
         )
-        for etf in config.etfs
+        for etf in config.leadership_etfs
     }
 
 
@@ -418,11 +428,11 @@ def validate_sector_etf_metrics(metrics: pd.DataFrame) -> None:
             "Metrics output adj_close values must be finite and positive"
         )
 
-    price_lookup = pd.Series(current_prices.to_numpy(), index=dates)
-    for horizon_days in SECTOR_ETF_RETURN_HORIZONS:
-        reference_date_column = f"reference_date_{horizon_days}d"
-        reference_price_column = f"reference_adj_close_{horizon_days}d"
-        return_column = f"adj_close_return_{horizon_days}d"
+    for horizon_trading_days in SECTOR_ETF_RETURN_HORIZONS:
+        suffix = f"{horizon_trading_days}td"
+        reference_date_column = f"reference_date_{suffix}"
+        reference_price_column = f"reference_adj_close_{suffix}"
+        return_column = f"adj_close_return_{suffix}"
 
         raw_reference_dates = metrics[reference_date_column]
         blank_reference_dates = raw_reference_dates.isna() | (
@@ -454,12 +464,21 @@ def validate_sector_etf_metrics(metrics: pd.DataFrame) -> None:
         )
         if not missingness_matches:
             raise SectorETFMetricsValidationError(
-                f"Metrics output {horizon_days}d reference and return nulls "
+                f"Metrics output {suffix} reference and return nulls "
                 "must align"
             )
 
         available = ~blank_reference_dates
-        if not available.any():
+        expected_available = pd.Series(
+            np.arange(len(metrics)) >= horizon_trading_days,
+            index=metrics.index,
+        )
+        if not available.equals(expected_available):
+            raise SectorETFMetricsValidationError(
+                f"Metrics output {suffix} must be empty for exactly the "
+                f"first {horizon_trading_days} trading observations"
+            )
+        if not expected_available.any():
             continue
         reference_values = reference_prices.loc[available].to_numpy(
             dtype=float,
@@ -475,32 +494,36 @@ def validate_sector_etf_metrics(metrics: pd.DataFrame) -> None:
             or not np.isfinite(return_values).all()
         ):
             raise SectorETFMetricsValidationError(
-                f"Metrics output {horizon_days}d values must be finite and "
+                f"Metrics output {suffix} values must be finite and "
                 "reference prices must be positive"
             )
 
-        target_dates = dates.loc[available] - pd.Timedelta(days=horizon_days)
-        if (
-            reference_dates.loc[available].to_numpy()
-            > target_dates.to_numpy()
-        ).any():
+        expected_reference_dates = dates.shift(horizon_trading_days)
+        if not np.array_equal(
+            reference_dates.loc[available].to_numpy(
+                dtype="datetime64[ns]"
+            ),
+            expected_reference_dates.loc[available].to_numpy(
+                dtype="datetime64[ns]"
+            ),
+        ):
             raise SectorETFMetricsValidationError(
-                f"Metrics output {horizon_days}d reference dates must be on "
-                "or before target dates"
+                f"Metrics output {suffix} reference dates must be exactly "
+                f"{horizon_trading_days} trading observations earlier"
             )
 
-        expected_reference_prices = price_lookup.reindex(
-            reference_dates.loc[available]
+        expected_reference_prices = current_prices.shift(
+            horizon_trading_days
         )
-        if expected_reference_prices.isna().any() or not np.allclose(
+        if not np.allclose(
             reference_values,
-            expected_reference_prices.to_numpy(dtype=float),
+            expected_reference_prices.loc[available].to_numpy(dtype=float),
             rtol=1e-12,
             atol=1e-12,
         ):
             raise SectorETFMetricsValidationError(
-                f"Metrics output {horizon_days}d reference prices do not "
-                "match the ETF history"
+                f"Metrics output {suffix} reference prices must come from "
+                f"exactly {horizon_trading_days} trading observations earlier"
             )
 
         expected_returns = (
@@ -515,7 +538,7 @@ def validate_sector_etf_metrics(metrics: pd.DataFrame) -> None:
             atol=1e-12,
         ):
             raise SectorETFMetricsValidationError(
-                f"Metrics output {horizon_days}d return formula is invalid"
+                f"Metrics output {suffix} return formula is invalid"
             )
 
 
@@ -526,7 +549,7 @@ def resolve_sector_etf_metrics_path(
     """Resolve the configured sector basename inside the metrics directory."""
 
     filename = validate_fund_history_filename(
-        etf.fund_history_filename,
+        etf.metrics_filename,
         location=f"{etf.ticker}.metrics_filename",
     )
     return Path(output_dir) / filename
@@ -597,14 +620,14 @@ def _result_for_metrics(
         rows=len(metrics),
         earliest_date=str(metrics["date"].iloc[0]),
         latest_date=str(metrics["date"].iloc[-1]),
-        return_250d_non_null=int(
-            metrics["adj_close_return_250d"].notna().sum()
+        return_250td_non_null=int(
+            metrics["adj_close_return_250td"].notna().sum()
         ),
-        return_90d_non_null=int(
-            metrics["adj_close_return_90d"].notna().sum()
+        return_90td_non_null=int(
+            metrics["adj_close_return_90td"].notna().sum()
         ),
-        return_30d_non_null=int(
-            metrics["adj_close_return_30d"].notna().sum()
+        return_30td_non_null=int(
+            metrics["adj_close_return_30td"].notna().sum()
         ),
         file_written=file_written,
     )
@@ -623,7 +646,7 @@ def run_sector_etf_metrics_update(
     config = load_sector_etf_config(config_path)
     prices = load_sector_etf_prices(
         price_file,
-        expected_tickers={etf.ticker for etf in config.etfs},
+        expected_tickers={etf.ticker for etf in config.leadership_etfs},
     )
     metrics_dir = Path(output_dir)
     metrics_dir.mkdir(parents=True, exist_ok=True)
@@ -634,7 +657,7 @@ def run_sector_etf_metrics_update(
 
     results: list[SectorETFMetricsResult] = []
     errors: dict[str, str] = {}
-    for etf in config.etfs:
+    for etf in config.leadership_etfs:
         try:
             etf_prices = prices.loc[prices["ticker"].eq(etf.ticker)]
             metrics = build_one_sector_etf_metrics(etf_prices)
@@ -663,7 +686,7 @@ def run_sector_etf_metrics_update(
             )
 
     return SectorETFMetricsUpdateSummary(
-        configured_etfs=len(config.etfs),
+        configured_etfs=len(config.leadership_etfs),
         succeeded=len(results),
         failed=len(errors),
         files_written=sum(result.file_written for result in results),
@@ -676,7 +699,7 @@ def run_sector_etf_metrics_update(
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Rebuild local 250/90/30-calendar-day sector ETF "
+            "Rebuild local 30/90/250-trading-day sector ETF "
             "adjusted-close returns."
         )
     )

@@ -1,4 +1,4 @@
-schema_version: 1
+schema_version: 2
 
 source:
   provider: yahoo_finance
@@ -8,75 +8,166 @@ state_street:
   nav_history_url_template: >-
     https://www.ssga.com/us/en/intermediary/library-content/products/fund-data/etfs/us/navhist-us-en-{ticker_lower}.xlsx
 
+ishares:
+  product_page_url_template: >-
+    https://www.blackrock.com/us/individual/products/{product_id}/{product_slug}
+  fund_download_url_template: >-
+    https://www.blackrock.com/varnish-api/blk-one01-product-data/product-data/api/v1/get-fund-document?appSubType=ISHARES&appType=PRODUCT_PAGE&component=fundDownload&locale=en_US&portfolioId={product_id}&targetSite=us-ishares&userType=individual
+
 price_history:
   interval: 1d
   auto_adjust: false
   initial_period: max
   incremental_overlap_days: 5
 
+universes:
+  primary_sector:
+    - XLC
+    - XLY
+    - XLP
+    - XLE
+    - XLF
+    - XLV
+    - XLI
+    - XLB
+    - XLRE
+    - XLK
+    - XLU
+  leadership:
+    - XLC
+    - XLY
+    - XLP
+    - XLE
+    - XLF
+    - XLV
+    - XLI
+    - XLB
+    - XLRE
+    - XLK
+    - XLU
+    - SOXX
+    - IGV
+
 etfs:
   - sector_id: communication_services
     sector_name: Communication Services
     sector_name_cn: 通信服务
     ticker: XLC
+    classification_level: sector
+    fund_data_provider: state_street
     fund_history_filename: xlc_communication_services.csv
+    metrics_filename: xlc_communication_services.csv
 
   - sector_id: consumer_discretionary
     sector_name: Consumer Discretionary
     sector_name_cn: 可选消费
     ticker: XLY
+    classification_level: sector
+    fund_data_provider: state_street
     fund_history_filename: xly_consumer_discretionary.csv
+    metrics_filename: xly_consumer_discretionary.csv
 
   - sector_id: consumer_staples
     sector_name: Consumer Staples
     sector_name_cn: 必选消费
     ticker: XLP
+    classification_level: sector
+    fund_data_provider: state_street
     fund_history_filename: xlp_consumer_staples.csv
+    metrics_filename: xlp_consumer_staples.csv
 
   - sector_id: energy
     sector_name: Energy
     sector_name_cn: 能源
     ticker: XLE
+    classification_level: sector
+    fund_data_provider: state_street
     fund_history_filename: xle_energy.csv
+    metrics_filename: xle_energy.csv
 
   - sector_id: financials
     sector_name: Financials
     sector_name_cn: 金融
     ticker: XLF
+    classification_level: sector
+    fund_data_provider: state_street
     fund_history_filename: xlf_finance.csv
+    metrics_filename: xlf_finance.csv
 
   - sector_id: health_care
     sector_name: Health Care
     sector_name_cn: 医疗保健
     ticker: XLV
+    classification_level: sector
+    fund_data_provider: state_street
     fund_history_filename: xlv_health_care.csv
+    metrics_filename: xlv_health_care.csv
 
   - sector_id: industrials
     sector_name: Industrials
     sector_name_cn: 工业
     ticker: XLI
+    classification_level: sector
+    fund_data_provider: state_street
     fund_history_filename: xli_industrials.csv
+    metrics_filename: xli_industrials.csv
 
   - sector_id: materials
     sector_name: Materials
     sector_name_cn: 原材料
     ticker: XLB
+    classification_level: sector
+    fund_data_provider: state_street
     fund_history_filename: xlb_materials.csv
+    metrics_filename: xlb_materials.csv
 
   - sector_id: real_estate
     sector_name: Real Estate
     sector_name_cn: 房地产
     ticker: XLRE
+    classification_level: sector
+    fund_data_provider: state_street
     fund_history_filename: xlre_real_estate.csv
+    metrics_filename: xlre_real_estate.csv
 
   - sector_id: information_technology
     sector_name: Information Technology
     sector_name_cn: 信息技术
     ticker: XLK
+    classification_level: sector
+    fund_data_provider: state_street
     fund_history_filename: xlk_information_technology.csv
+    metrics_filename: xlk_information_technology.csv
 
   - sector_id: utilities
     sector_name: Utilities
     sector_name_cn: 公用事业
     ticker: XLU
+    classification_level: sector
+    fund_data_provider: state_street
     fund_history_filename: xlu_utilities.csv
+    metrics_filename: xlu_utilities.csv
+
+  - sector_id: semiconductors
+    sector_name: Semiconductors
+    sector_name_cn: 半导体
+    ticker: SOXX
+    classification_level: industry
+    parent_sector_id: information_technology
+    fund_data_provider: ishares
+    ishares_product_id: 239705
+    product_page_slug: ishares-semiconductor-etf
+    fund_history_filename: soxx_semiconductors.csv
+    metrics_filename: soxx_semiconductors.csv
+
+  - sector_id: software
+    sector_name: Software
+    sector_name_cn: 软件
+    ticker: IGV
+    classification_level: industry
+    parent_sector_id: information_technology
+    fund_data_provider: ishares
+    ishares_product_id: 239771
+    product_page_slug: ishares-north-american-techsoftware-etf
+    fund_history_filename: igv_software.csv
+    metrics_filename: igv_software.csv

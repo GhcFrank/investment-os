@@ -27,6 +27,8 @@ class SectorETFConfigTests(unittest.TestCase):
         "XLRE": "xlre_real_estate.csv",
         "XLK": "xlk_information_technology.csv",
         "XLU": "xlu_utilities.csv",
+        "SOXX": "soxx_semiconductors.csv",
+        "IGV": "igv_software.csv",
     }
 
     def setUp(self):
@@ -42,16 +44,24 @@ class SectorETFConfigTests(unittest.TestCase):
         )
         return path
 
-    def test_loads_exactly_11_unique_uppercase_etfs(self):
+    def test_loads_explicit_11_primary_and_13_leadership_universes(self):
         self.payload["etfs"][0]["ticker"] = " xlc "
         with tempfile.TemporaryDirectory() as tmp:
             config = sector_prices.load_sector_etf_config(
                 self.write_config(tmp, self.payload)
             )
-        self.assertEqual(len(config.etfs), 11)
+        self.assertEqual(len(config.etfs), 13)
         self.assertEqual(config.etfs[0].ticker, "XLC")
-        self.assertEqual(len({etf.ticker for etf in config.etfs}), 11)
-        self.assertEqual(len({etf.sector_id for etf in config.etfs}), 11)
+        self.assertEqual(len({etf.ticker for etf in config.etfs}), 13)
+        self.assertEqual(len({etf.sector_id for etf in config.etfs}), 13)
+        self.assertEqual(len(config.primary_sector_etfs), 11)
+        self.assertEqual(len(config.leadership_etfs), 13)
+        self.assertEqual(len(config.state_street_etfs), 11)
+        self.assertEqual(len(config.ishares_etfs), 2)
+        primary_tickers = {etf.ticker for etf in config.primary_sector_etfs}
+        leadership_tickers = {etf.ticker for etf in config.leadership_etfs}
+        self.assertTrue({"SOXX", "IGV"}.issubset(leadership_tickers))
+        self.assertTrue({"SOXX", "IGV"}.isdisjoint(primary_tickers))
         self.assertEqual(
             {
                 etf.ticker: etf.fund_history_filename
@@ -61,11 +71,21 @@ class SectorETFConfigTests(unittest.TestCase):
         )
         self.assertEqual(
             len({etf.fund_history_filename for etf in config.etfs}),
-            11,
+            13,
         )
         xlf = next(etf for etf in config.etfs if etf.ticker == "XLF")
         self.assertEqual(xlf.sector_id, "financials")
         self.assertEqual(xlf.fund_history_filename, "xlf_finance.csv")
+        soxx = next(etf for etf in config.etfs if etf.ticker == "SOXX")
+        igv = next(etf for etf in config.etfs if etf.ticker == "IGV")
+        self.assertEqual(soxx.ishares_product_id, 239705)
+        self.assertEqual(igv.ishares_product_id, 239771)
+        self.assertEqual(soxx.fund_history_filename, "soxx_semiconductors.csv")
+        self.assertEqual(igv.fund_history_filename, "igv_software.csv")
+        self.assertEqual(soxx.metrics_filename, "soxx_semiconductors.csv")
+        self.assertEqual(igv.metrics_filename, "igv_software.csv")
+        self.assertEqual(soxx.classification_level, "industry")
+        self.assertEqual(igv.classification_level, "industry")
         self.assertIn(
             "{ticker_lower}",
             config.state_street_nav_history_url_template,
@@ -77,6 +97,38 @@ class SectorETFConfigTests(unittest.TestCase):
             path = self.write_config(tmp, self.payload)
             with self.assertRaisesRegex(ValueError, "sector_name_cn"):
                 sector_prices.load_sector_etf_config(path)
+
+    def test_industry_overlays_cannot_change_primary_sector_input(self):
+        config = sector_prices.load_sector_etf_config()
+        original_rows = pd.DataFrame(
+            {
+                "ticker": config.primary_sector_tickers,
+                "value": range(len(config.primary_sector_tickers)),
+            }
+        )
+        with_overlays = pd.concat(
+            [
+                original_rows,
+                pd.DataFrame(
+                    {
+                        "ticker": ["SOXX", "IGV"],
+                        "value": [999, 1000],
+                    }
+                ),
+            ],
+            ignore_index=True,
+        )
+        selected = with_overlays.loc[
+            with_overlays["ticker"].isin(config.primary_sector_tickers)
+        ].reset_index(drop=True)
+        original_concentration = (
+            original_rows["value"].pow(2).sum()
+        )
+        selected_concentration = selected["value"].pow(2).sum()
+        pd.testing.assert_frame_equal(selected, original_rows)
+        self.assertEqual(selected_concentration, original_concentration)
+        self.assertEqual(len(selected), 11)
+        self.assertTrue({"SOXX", "IGV"}.isdisjoint(selected["ticker"]))
 
     def test_duplicate_ticker_or_sector_raises(self):
         self.payload["etfs"][1]["ticker"] = self.payload["etfs"][0]["ticker"]
@@ -126,6 +178,18 @@ class SectorETFConfigTests(unittest.TestCase):
                 ValueError,
                 "duplicate fund_history_filename",
             ):
+                sector_prices.load_sector_etf_config(path)
+
+    def test_ishares_product_id_must_be_positive(self):
+        soxx = next(
+            etf
+            for etf in self.payload["etfs"]
+            if etf["ticker"] == "SOXX"
+        )
+        soxx["ishares_product_id"] = 0
+        with tempfile.TemporaryDirectory() as tmp:
+            path = self.write_config(tmp, self.payload)
+            with self.assertRaisesRegex(ValueError, "positive"):
                 sector_prices.load_sector_etf_config(path)
 
 
@@ -198,7 +262,11 @@ class SectorETFPriceNormalizationTests(unittest.TestCase):
 class SectorETFPriceDownloadTests(unittest.TestCase):
     def test_failure_isolated_and_overlap_and_auto_adjust_are_explicit(self):
         full_config = sector_prices.load_sector_etf_config()
-        config = replace(full_config, etfs=full_config.etfs[:2])
+        config = replace(
+            full_config,
+            etfs=full_config.etfs[:2],
+            leadership_tickers=("XLC", "XLY"),
+        )
 
         class FakeYahoo:
             def __init__(self):
@@ -278,10 +346,12 @@ class SectorETFPriceUpsertTests(unittest.TestCase):
                 incremental,
                 output,
             )
+            second_mtime = output.stat().st_mtime_ns
             repeat_stats = sector_prices.upsert_sector_etf_prices(
                 incremental,
                 output,
             )
+            repeat_mtime = output.stat().st_mtime_ns
             saved = pd.read_csv(output)
             header = output.read_text(encoding="utf-8").splitlines()[0]
 
@@ -289,6 +359,9 @@ class SectorETFPriceUpsertTests(unittest.TestCase):
         self.assertEqual(second_stats.inserted, 1)
         self.assertEqual(second_stats.updated, 1)
         self.assertEqual(repeat_stats.inserted, 0)
+        self.assertEqual(repeat_stats.updated, 0)
+        self.assertFalse(repeat_stats.file_written)
+        self.assertEqual(second_mtime, repeat_mtime)
         self.assertEqual(len(saved), 3)
         self.assertFalse(saved.duplicated(["date", "ticker"]).any())
         self.assertEqual(

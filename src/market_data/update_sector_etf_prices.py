@@ -13,6 +13,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
+from io import StringIO
 from typing import Any
 
 import pandas as pd
@@ -67,6 +68,7 @@ class UpsertStats:
     inserted: int = 0
     updated: int = 0
     total: int = 0
+    file_written: bool = False
 
 
 @dataclass
@@ -113,7 +115,7 @@ def _etf_sequence(
     config_or_etfs: SectorETFConfig | SectorETF | Sequence[SectorETF],
 ) -> tuple[SectorETF, ...]:
     if isinstance(config_or_etfs, SectorETFConfig):
-        return config_or_etfs.etfs
+        return config_or_etfs.leadership_etfs
     if isinstance(config_or_etfs, SectorETF):
         return (config_or_etfs,)
     return tuple(config_or_etfs)
@@ -352,7 +354,7 @@ def download_sector_etf_prices(
     succeeded: list[str] = []
     errors: dict[str, str] = {}
 
-    for etf in config.etfs:
+    for etf in config.leadership_etfs:
         kwargs: dict[str, Any] = {
             "tickers": etf.ticker,
             "end": exclusive_end,
@@ -444,14 +446,70 @@ def upsert_sector_etf_prices(
     incoming = _clean_price_rows(new_prices)
     existing_keys = set(zip(existing["date"], existing["ticker"]))
     incoming_keys = set(zip(incoming["date"], incoming["ticker"]))
+    comparison_columns = [
+        column
+        for column in PRICE_COLUMNS
+        if column not in {"date", "ticker", "fetched_at_utc"}
+    ]
+    existing_rows = {
+        (str(row.date), str(row.ticker)): row
+        for row in existing.itertuples(index=False)
+    }
+    updated_keys: set[tuple[str, str]] = set()
+    for row_index, row in incoming.iterrows():
+        key = (str(row["date"]), str(row["ticker"]))
+        existing_row = existing_rows.get(key)
+        if existing_row is None:
+            continue
+        unchanged = all(
+            (
+                pd.isna(row[column])
+                and pd.isna(getattr(existing_row, column))
+            )
+            or (
+                not pd.isna(row[column])
+                and not pd.isna(getattr(existing_row, column))
+                and row[column] == getattr(existing_row, column)
+            )
+            for column in comparison_columns
+        )
+        if unchanged:
+            incoming.at[row_index, "fetched_at_utc"] = (
+                existing_row.fetched_at_utc
+            )
+        else:
+            updated_keys.add(key)
     combined = _clean_price_rows(
         pd.concat([existing, incoming], ignore_index=True)
     )
-    atomic_write_csv(combined, path, PRICE_COLUMNS)
+
+    buffer = StringIO()
+    combined.to_csv(
+        buffer,
+        columns=PRICE_COLUMNS,
+        index=False,
+        encoding="utf-8",
+        na_rep="",
+        lineterminator="\n",
+    )
+    expected_content = buffer.getvalue()
+    file_written = (
+        not path.exists()
+        or path.read_text(encoding="utf-8") != expected_content
+    )
+    if file_written:
+        atomic_write_csv(
+            combined,
+            path,
+            PRICE_COLUMNS,
+            na_rep="",
+            lineterminator="\n",
+        )
     return UpsertStats(
         inserted=len(incoming_keys - existing_keys),
-        updated=len(incoming_keys & existing_keys),
+        updated=len(updated_keys),
         total=len(combined),
+        file_written=file_written,
     )
 
 
@@ -483,7 +541,7 @@ def run_sector_etf_price_update(
         stats = upsert_sector_etf_prices(result.prices, price_file)
 
     summary = SectorETFPriceUpdateSummary(
-        configured_etfs=len(config.etfs),
+        configured_etfs=len(config.leadership_etfs),
         price_tickers_succeeded=len(result.succeeded),
         price_tickers_failed=len(result.errors),
         price_rows_inserted=stats.inserted,

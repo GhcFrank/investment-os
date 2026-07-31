@@ -25,205 +25,155 @@ def one_ticker_prices(rows, ticker="XLF"):
     )
 
 
-class CalendarDayReturnTests(unittest.TestCase):
-    def test_exact_weekend_and_holiday_targets_use_backward_asof(self):
-        prices = one_ticker_prices(
+class TradingDayReturnTests(unittest.TestCase):
+    @staticmethod
+    def session_rows(count, *, start="2023-01-02", ticker="XLF"):
+        holiday_dates = {"2023-01-16", "2023-02-20", "2023-04-07"}
+        dates = [
+            value.strftime("%Y-%m-%d")
+            for value in pd.date_range(start, periods=count * 2, freq="D")
+            if value.weekday() < 5
+            and value.strftime("%Y-%m-%d") not in holiday_dates
+        ][:count]
+        return one_ticker_prices(
             [
-                ("2024-01-05", 100.0, {}),
-                ("2024-01-08", 101.0, {}),
-                ("2024-01-10", 101.5, {}),
-                ("2024-01-12", 102.0, {}),
-                ("2024-01-16", 103.0, {}),
-                ("2024-02-05", 104.0, {}),
-                ("2024-02-06", 105.0, {}),
-                ("2024-02-09", 106.0, {}),
-                ("2024-02-14", 107.0, {}),
-                ("2024-04-04", 110.0, {}),
-                ("2024-04-05", 120.0, {}),
-            ]
+                (date_value, 100.0 + index, {})
+                for index, date_value in enumerate(dates)
+            ],
+            ticker=ticker,
         )
 
-        result_90d = metrics.calculate_calendar_day_adj_close_return(
-            prices,
-            90,
-        )
-        rows_90d = pd.concat(
-            [prices[["date"]].reset_index(drop=True), result_90d],
-            axis=1,
-        ).set_index("date")
+    def test_fixed_row_shift_ignores_weekends_and_holiday_gaps(self):
+        prices = self.session_rows(31)
+        result = metrics.calculate_trading_day_adj_close_return(prices, 30)
+        self.assertTrue(result.iloc[:30].isna().all().all())
         self.assertEqual(
-            rows_90d.at[
-                "2024-04-04",
-                "reference_date_90d",
-            ].strftime("%Y-%m-%d"),
-            "2024-01-05",
+            result.iloc[30]["reference_date_30td"].strftime("%Y-%m-%d"),
+            prices.iloc[0]["date"],
         )
-        # 2024-04-05 - 90 days is Saturday 2024-01-06. The following
-        # Monday must not be selected.
         self.assertEqual(
-            rows_90d.at[
-                "2024-04-05",
-                "reference_date_90d",
-            ].strftime("%Y-%m-%d"),
-            "2024-01-05",
+            result.iloc[30]["reference_adj_close_30td"],
+            prices.iloc[0]["adj_close"],
         )
+        calendar_span = (
+            pd.Timestamp(prices.iloc[30]["date"])
+            - pd.Timestamp(prices.iloc[0]["date"])
+        ).days
+        self.assertGreater(calendar_span, 30)
 
-        result_30d = metrics.calculate_calendar_day_adj_close_return(
-            prices,
-            30,
-        )
-        rows_30d = pd.concat(
-            [prices[["date"]].reset_index(drop=True), result_30d],
-            axis=1,
-        ).set_index("date")
-        # 2024-02-09 - 30 days is the exact trading date 2024-01-10.
-        self.assertEqual(
-            rows_30d.at[
-                "2024-02-09",
-                "reference_date_30d",
-            ].strftime("%Y-%m-%d"),
-            "2024-01-10",
-        )
-        # Saturday and Sunday targets both use the prior Friday.
-        self.assertEqual(
-            rows_30d.at[
-                "2024-02-05",
-                "reference_date_30d",
-            ].strftime("%Y-%m-%d"),
-            "2024-01-05",
-        )
-        self.assertEqual(
-            rows_30d.at[
-                "2024-02-06",
-                "reference_date_30d",
-            ].strftime("%Y-%m-%d"),
-            "2024-01-05",
-        )
-        # 2024-02-14 - 30 days is the 2024-01-15 market holiday.
-        self.assertEqual(
-            rows_30d.at[
-                "2024-02-14",
-                "reference_date_30d",
-            ].strftime("%Y-%m-%d"),
-            "2024-01-12",
-        )
+    def test_off_by_one_first_valid_rows_for_all_horizons(self):
+        prices = self.session_rows(251)
+        result = metrics.build_one_sector_etf_metrics(prices)
+        for horizon in metrics.SECTOR_ETF_RETURN_HORIZONS:
+            column = f"reference_date_{horizon}td"
+            self.assertTrue(result.iloc[:horizon][column].isna().all())
+            self.assertEqual(
+                result.iloc[horizon][column],
+                result.iloc[0]["date"],
+            )
+            self.assertEqual(
+                result[f"adj_close_return_{horizon}td"].notna().sum(),
+                len(result) - horizon,
+            )
 
     def test_return_formula_saves_gain_and_loss_not_price_ratio(self):
-        prices = one_ticker_prices(
-            [
-                ("2024-01-01", 100.0, {}),
-                ("2024-01-02", 100.0, {}),
-                ("2024-03-31", 125.0, {}),
-                ("2024-04-01", 80.0, {}),
-            ]
-        )
-        result = metrics.calculate_calendar_day_adj_close_return(prices, 90)
-        rows = pd.concat(
-            [prices[["date"]].reset_index(drop=True), result],
-            axis=1,
-        ).set_index("date")
-        self.assertAlmostEqual(
-            rows.at["2024-03-31", "adj_close_return_90d"],
-            0.25,
-        )
-        self.assertNotEqual(
-            rows.at["2024-03-31", "adj_close_return_90d"],
-            1.25,
-        )
-        self.assertAlmostEqual(
-            rows.at["2024-04-01", "adj_close_return_90d"],
-            -0.20,
-        )
+        prices = self.session_rows(32)
+        prices.loc[:, "adj_close"] = 100.0
+        prices.loc[30, "adj_close"] = 125.0
+        prices.loc[31, "adj_close"] = 80.0
+        result = metrics.calculate_trading_day_adj_close_return(prices, 30)
+        self.assertAlmostEqual(result.loc[30, "adj_close_return_30td"], 0.25)
+        self.assertNotEqual(result.loc[30, "adj_close_return_30td"], 1.25)
+        self.assertAlmostEqual(result.loc[31, "adj_close_return_30td"], -0.20)
 
     def test_builder_uses_adj_close_and_never_raw_close(self):
-        prices = one_ticker_prices(
-            [
-                ("2024-01-01", 80.0, {"close": 100.0}),
-                ("2024-03-31", 100.0, {"close": 110.0}),
-            ]
-        )
+        prices = self.session_rows(31)
+        prices.loc[:, "adj_close"] = 80.0
+        prices.loc[:, "close"] = 100.0
+        prices.loc[30, "adj_close"] = 100.0
+        prices.loc[30, "close"] = 110.0
         result = metrics.build_one_sector_etf_metrics(prices)
-        current = result.loc[result["date"].eq("2024-03-31")].iloc[0]
-        self.assertAlmostEqual(current["adj_close_return_90d"], 0.25)
-        self.assertNotAlmostEqual(current["adj_close_return_90d"], 0.10)
-        self.assertAlmostEqual(current["reference_adj_close_90d"], 80.0)
+        current = result.iloc[30]
+        self.assertAlmostEqual(current["adj_close_return_30td"], 0.25)
+        self.assertNotAlmostEqual(current["adj_close_return_30td"], 0.10)
+        self.assertAlmostEqual(current["reference_adj_close_30td"], 80.0)
 
-    def test_all_horizons_are_calendar_days_not_row_shifts(self):
-        prices = one_ticker_prices(
-            [
-                ("2020-01-02", 10.0, {}),
-                ("2020-05-01", 20.0, {}),
-                ("2020-09-01", 40.0, {}),
-                ("2020-12-08", 60.0, {}),
-                ("2021-01-08", 80.0, {}),
-            ]
-        )
-        result = metrics.build_one_sector_etf_metrics(prices)
-        current = result.loc[result["date"].eq("2021-01-08")].iloc[0]
-        self.assertEqual(current["reference_date_250d"], "2020-05-01")
-        self.assertEqual(current["reference_date_90d"], "2020-09-01")
-        self.assertEqual(current["reference_date_30d"], "2020-12-08")
-        self.assertAlmostEqual(current["adj_close_return_250d"], 3.0)
-        self.assertAlmostEqual(current["adj_close_return_90d"], 1.0)
-        self.assertAlmostEqual(
-            current["adj_close_return_30d"],
-            80.0 / 60.0 - 1.0,
+    def test_new_result_differs_from_calendar_day_lookup(self):
+        prices = self.session_rows(31)
+        result = metrics.calculate_trading_day_adj_close_return(prices, 30)
+        current_date = pd.Timestamp(prices.iloc[30]["date"])
+        calendar_target = current_date - pd.Timedelta(days=30)
+        calendar_reference_index = pd.to_datetime(
+            prices["date"]
+        ).searchsorted(calendar_target, side="right") - 1
+        self.assertNotEqual(calendar_reference_index, 0)
+        self.assertEqual(
+            result.iloc[30]["reference_date_30td"].strftime("%Y-%m-%d"),
+            prices.iloc[0]["date"],
         )
 
     def test_insufficient_history_keeps_rows_and_nulls_all_reference_fields(self):
-        prices = one_ticker_prices(
-            [
-                ("2024-01-02", 100.0, {}),
-                ("2024-01-20", 105.0, {}),
-            ]
-        )
+        prices = self.session_rows(2)
         result = metrics.build_one_sector_etf_metrics(prices)
         self.assertEqual(len(result), 2)
         for horizon in metrics.SECTOR_ETF_RETURN_HORIZONS:
-            self.assertTrue(result[f"reference_date_{horizon}d"].isna().all())
             self.assertTrue(
-                result[f"reference_adj_close_{horizon}d"].isna().all()
+                result[f"reference_date_{horizon}td"].isna().all()
             )
             self.assertTrue(
-                result[f"adj_close_return_{horizon}d"].isna().all()
+                result[f"reference_adj_close_{horizon}td"].isna().all()
+            )
+            self.assertTrue(
+                result[f"adj_close_return_{horizon}td"].isna().all()
             )
 
-    def test_two_etfs_never_share_reference_history(self):
+    def test_four_etfs_never_share_reference_history(self):
+        selected_tickers = {"XLF", "XLK", "SOXX", "IGV"}
         config = metrics.load_sector_etf_config()
         selected = replace(
             config,
             etfs=tuple(
-                etf for etf in config.etfs if etf.ticker in {"XLF", "XLK"}
+                etf
+                for etf in config.etfs
+                if etf.ticker in selected_tickers
             ),
+            leadership_tickers=("XLF", "XLK", "SOXX", "IGV"),
         )
-        prices = pd.concat(
-            [
-                one_ticker_prices(
-                    [
-                        ("2024-01-01", 100.0, {}),
-                        ("2024-03-31", 125.0, {}),
-                    ],
-                    ticker="XLF",
-                ),
-                one_ticker_prices(
-                    [
-                        ("2024-01-02", 50.0, {}),
-                        ("2024-04-01", 40.0, {}),
-                    ],
-                    ticker="XLK",
-                ),
-            ],
-            ignore_index=True,
+        starts = {
+            "XLF": "2023-01-02",
+            "XLK": "2023-01-03",
+            "SOXX": "2023-01-04",
+            "IGV": "2023-01-05",
+        }
+        bases = {"XLF": 100.0, "XLK": 200.0, "SOXX": 300.0, "IGV": 400.0}
+        frames = []
+        for ticker in selected.leadership_tickers:
+            frame = self.session_rows(
+                31,
+                start=starts[ticker],
+                ticker=ticker,
+            )
+            frame["adj_close"] = bases[ticker]
+            frame.loc[30, "adj_close"] = bases[ticker] * 1.25
+            frames.append(frame)
+        result = metrics.build_all_sector_etf_metrics(
+            pd.concat(frames, ignore_index=True),
+            selected,
         )
-        result = metrics.build_all_sector_etf_metrics(prices, selected)
-        xlf = result["XLF"].iloc[-1]
-        xlk = result["XLK"].iloc[-1]
-        self.assertEqual(xlf["reference_date_90d"], "2024-01-01")
-        self.assertEqual(xlf["reference_adj_close_90d"], 100.0)
-        self.assertAlmostEqual(xlf["adj_close_return_90d"], 0.25)
-        self.assertEqual(xlk["reference_date_90d"], "2024-01-02")
-        self.assertEqual(xlk["reference_adj_close_90d"], 50.0)
-        self.assertAlmostEqual(xlk["adj_close_return_90d"], -0.20)
+        for ticker in selected.leadership_tickers:
+            current = result[ticker].iloc[30]
+            self.assertEqual(
+                current["reference_date_30td"],
+                result[ticker].iloc[0]["date"],
+            )
+            self.assertEqual(
+                current["reference_adj_close_30td"],
+                bases[ticker],
+            )
+            self.assertAlmostEqual(
+                current["adj_close_return_30td"],
+                0.25,
+            )
 
 
 class SectorETFPriceValidationTests(unittest.TestCase):
@@ -360,9 +310,21 @@ class SectorETFMetricsOutputTests(unittest.TestCase):
         )
         self.assertNotIn("Unnamed: 0", saved.columns)
         self.assertEqual(list(saved["date"]), ["2024-01-02", "2025-01-02"])
-        self.assertEqual(saved.at[0, "reference_date_90d"], "")
-        self.assertEqual(saved.at[0, "reference_adj_close_90d"], "")
-        self.assertEqual(saved.at[0, "adj_close_return_90d"], "")
+        self.assertEqual(saved.at[0, "reference_date_90td"], "")
+        self.assertEqual(saved.at[0, "reference_adj_close_90td"], "")
+        self.assertEqual(saved.at[0, "adj_close_return_90td"], "")
+        for obsolete in (
+            "reference_date_250d",
+            "reference_adj_close_250d",
+            "adj_close_return_250d",
+            "reference_date_90d",
+            "reference_adj_close_90d",
+            "adj_close_return_90d",
+            "reference_date_30d",
+            "reference_adj_close_30d",
+            "adj_close_return_30d",
+        ):
+            self.assertNotIn(obsolete, saved.columns)
 
     def test_production_metrics_source_has_no_120_day_semantics(self):
         source = Path(metrics.__file__).read_text(encoding="utf-8")
@@ -370,6 +332,9 @@ class SectorETFMetricsOutputTests(unittest.TestCase):
             "adj_close_return_120d",
             "reference_date_120d",
             "reference_adj_close_120d",
+            "adj_close_return_120td",
+            "reference_date_120td",
+            "reference_adj_close_120td",
         ):
             self.assertNotIn(obsolete, source)
 
@@ -436,7 +401,7 @@ class SectorETFMetricsOutputTests(unittest.TestCase):
                 output_dir=output_dir,
             )
             expected_names = {
-                etf.fund_history_filename for etf in config.etfs
+                etf.metrics_filename for etf in config.leadership_etfs
             }
             actual_names = {path.name for path in output_dir.glob("*.csv")}
             first_mtimes = {
@@ -453,9 +418,9 @@ class SectorETFMetricsOutputTests(unittest.TestCase):
             }
             saved_xlf = pd.read_csv(output_dir / "xlf_finance.csv")
 
-        self.assertEqual(first.succeeded, 11)
+        self.assertEqual(first.succeeded, 13)
         self.assertEqual(first.failed, 0)
-        self.assertEqual(first.files_written, 11)
+        self.assertEqual(first.files_written, 13)
         self.assertEqual(actual_names, expected_names)
         self.assertIn("xlc_communication_services.csv", actual_names)
         self.assertIn("xlf_finance.csv", actual_names)
@@ -465,7 +430,7 @@ class SectorETFMetricsOutputTests(unittest.TestCase):
         self.assertNotIn("xlk.csv", actual_names)
         self.assertEqual(len(saved_xlf), 2)
         self.assertEqual(second.files_written, 0)
-        self.assertEqual(second.files_unchanged, 11)
+        self.assertEqual(second.files_unchanged, 13)
         self.assertEqual(first_mtimes, second_mtimes)
 
     def test_one_etf_write_failure_is_recorded_while_others_continue(self):
@@ -501,7 +466,7 @@ class SectorETFMetricsOutputTests(unittest.TestCase):
                 )
             actual_names = {path.name for path in output_dir.glob("*.csv")}
 
-        self.assertEqual(summary.succeeded, 10)
+        self.assertEqual(summary.succeeded, 12)
         self.assertEqual(summary.failed, 1)
         self.assertIn("XLF", summary.errors)
         self.assertNotIn("xlf_finance.csv", actual_names)

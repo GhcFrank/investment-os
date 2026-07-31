@@ -22,16 +22,19 @@ REFERENCE_DATES = {
 
 
 def default_return_maps(config):
-    tickers = [etf.ticker for etf in config.etfs]
+    tickers = [etf.ticker for etf in config.primary_sector_etfs]
+    overlay_returns = {"SOXX": 0.035, "IGV": 0.045}
     return {
         250: {
             ticker: index / 100
             for index, ticker in enumerate(tickers)
-        },
+        }
+        | overlay_returns,
         90: {
             ticker: (len(tickers) - 1 - index) / 100
             for index, ticker in enumerate(tickers)
-        },
+        }
+        | overlay_returns,
         30: {
             ticker: value
             for ticker, value in zip(
@@ -39,7 +42,8 @@ def default_return_maps(config):
                 [0.03, 0.02, 0.01, 0.00, -0.01, -0.02,
                  -0.03, 0.04, 0.05, 0.06, 0.07],
             )
-        },
+        }
+        | {"SOXX": 0.015, "IGV": -0.005},
     }
 
 
@@ -51,7 +55,7 @@ def latest_metrics_fixture(
     config = rankings.load_sector_etf_config()
     values = return_maps or default_return_maps(config)
     rows = []
-    for index, etf in enumerate(config.etfs):
+    for index, etf in enumerate(config.leadership_etfs):
         if etf.ticker in missing_tickers:
             continue
         adj_close = 100.0 + index
@@ -65,26 +69,26 @@ def latest_metrics_fixture(
         }
         for horizon in metrics.SECTOR_ETF_RETURN_HORIZONS:
             return_value = values[horizon][etf.ticker]
-            row[f"reference_date_{horizon}d"] = REFERENCE_DATES[horizon]
-            row[f"reference_adj_close_{horizon}d"] = (
+            row[f"reference_date_{horizon}td"] = REFERENCE_DATES[horizon]
+            row[f"reference_adj_close_{horizon}td"] = (
                 adj_close / (1.0 + return_value)
                 if not pd.isna(return_value)
                 else np.nan
             )
-            row[f"adj_close_return_{horizon}d"] = return_value
+            row[f"adj_close_return_{horizon}td"] = return_value
         rows.append(row)
     return rankings.LatestSectorETFMetrics(
         ranking_date=RANKING_DATE,
         rows=pd.DataFrame(rows),
         missing_tickers=tuple(sorted(missing_tickers)),
-        configured_count=len(config.etfs),
+        configured_count=len(config.leadership_etfs),
         latest_dates={
             etf.ticker: (
                 "2024-12-31"
                 if etf.ticker in missing_tickers
                 else RANKING_DATE
             )
-            for etf in config.etfs
+            for etf in config.leadership_etfs
         },
     )
 
@@ -93,16 +97,16 @@ def set_horizon_returns(latest, horizon, values):
     rows = latest.rows.copy()
     for ticker, return_value in values.items():
         selected = rows["ticker"].eq(ticker)
-        rows.loc[selected, f"adj_close_return_{horizon}d"] = return_value
+        rows.loc[selected, f"adj_close_return_{horizon}td"] = return_value
         if pd.isna(return_value):
             rows.loc[
                 selected,
-                f"reference_adj_close_{horizon}d",
+                f"reference_adj_close_{horizon}td",
             ] = np.nan
         else:
             rows.loc[
                 selected,
-                f"reference_adj_close_{horizon}d",
+                f"reference_adj_close_{horizon}td",
             ] = (
                 rows.loc[selected, "adj_close"] / (1.0 + return_value)
             )
@@ -118,15 +122,20 @@ def write_metrics_files(
     config = metrics.load_sector_etf_config()
     latest_date_by_ticker = latest_date_by_ticker or {}
     output_dir = Path(directory)
-    for index, etf in enumerate(config.etfs):
+    for index, etf in enumerate(config.leadership_etfs):
         if etf.ticker in omitted_tickers:
             continue
         latest_date = latest_date_by_ticker.get(etf.ticker, RANKING_DATE)
+        dates = pd.bdate_range(end=latest_date, periods=251)
         prices = pd.DataFrame(
             {
-                "date": ["2023-01-03", latest_date],
-                "ticker": [etf.ticker, etf.ticker],
-                "adj_close": [100.0, 110.0 + index],
+                "date": dates.strftime("%Y-%m-%d"),
+                "ticker": etf.ticker,
+                "adj_close": np.linspace(
+                    100.0 + index,
+                    110.0 + index,
+                    len(dates),
+                ),
             }
         )
         built = metrics.build_one_sector_etf_metrics(prices)
@@ -146,7 +155,7 @@ class SectorETFRankingCalculationTests(unittest.TestCase):
         def tickers(horizon, group):
             return list(
                 result.loc[
-                    result["horizon_days"].eq(horizon)
+                    result["horizon_trading_days"].eq(horizon)
                     & result["ranking_group"].eq(group)
                 ].sort_values("rank")["ticker"]
             )
@@ -158,7 +167,7 @@ class SectorETFRankingCalculationTests(unittest.TestCase):
         self.assertEqual(tickers(30, "top"), ["XLU", "XLK", "XLRE"])
         self.assertEqual(tickers(30, "bottom"), ["XLI", "XLV", "XLF"])
         worst_30d = result.loc[
-            result["horizon_days"].eq(30)
+            result["horizon_trading_days"].eq(30)
             & result["ranking_group"].eq("bottom")
             & result["rank"].eq(1)
         ].iloc[0]
@@ -183,18 +192,18 @@ class SectorETFRankingCalculationTests(unittest.TestCase):
         latest = replace(
             latest,
             rows=latest.rows.assign(
-                adj_close_return_90d=latest.rows[
-                    "adj_close_return_90d"
+                adj_close_return_90td=latest.rows[
+                    "adj_close_return_90td"
                 ].map(str)
             ),
         )
         result = rankings.build_daily_sector_etf_rankings(latest)
         top = result.loc[
-            result["horizon_days"].eq(250)
+            result["horizon_trading_days"].eq(250)
             & result["ranking_group"].eq("top")
         ].sort_values("rank")
         bottom = result.loc[
-            result["horizon_days"].eq(250)
+            result["horizon_trading_days"].eq(250)
             & result["ranking_group"].eq("bottom")
         ].sort_values("rank")
         self.assertEqual(list(top["ticker"]), ["XLB", "XLC", "XLK"])
@@ -207,9 +216,11 @@ class SectorETFRankingCalculationTests(unittest.TestCase):
         latest = latest_metrics_fixture()
         latest = set_horizon_returns(latest, 250, {"XLU": np.nan})
         result = rankings.build_daily_sector_etf_rankings(latest)
-        selected = result.loc[result["horizon_days"].eq(250)]
+        selected = result.loc[
+            result["horizon_trading_days"].eq(250)
+        ]
         self.assertNotIn("XLU", set(selected["ticker"]))
-        self.assertEqual(set(selected["universe_size"]), {10})
+        self.assertEqual(set(selected["universe_size"]), {12})
 
     def test_fewer_than_six_valid_values_blocks_rankings(self):
         latest = latest_metrics_fixture()
@@ -235,7 +246,7 @@ class SectorETFRankingDateTests(unittest.TestCase):
                 metrics_dir=tmp,
             )
         self.assertEqual(latest.ranking_date, RANKING_DATE)
-        self.assertEqual(latest.participating_count, 11)
+        self.assertEqual(latest.participating_count, 13)
         self.assertTrue(latest.is_complete)
         self.assertEqual(latest.missing_tickers, ())
 
@@ -280,7 +291,7 @@ class SectorETFRankingDateTests(unittest.TestCase):
 
     def test_five_available_etfs_do_not_produce_normal_rankings(self):
         config = rankings.load_sector_etf_config()
-        omitted = {etf.ticker for etf in config.etfs[5:]}
+        omitted = {etf.ticker for etf in config.leadership_etfs[5:]}
         with tempfile.TemporaryDirectory() as tmp:
             config = write_metrics_files(tmp, omitted_tickers=omitted)
             latest = rankings.load_latest_sector_etf_metrics(
@@ -334,7 +345,7 @@ class SectorETFRankingHistoryTests(unittest.TestCase):
                 after_revision.duplicated(
                     [
                         "date",
-                        "horizon_days",
+                        "horizon_trading_days",
                         "ranking_group",
                         "rank",
                     ]
@@ -358,11 +369,11 @@ class SectorETFRankingHistoryTests(unittest.TestCase):
         )
         first_date = saved.loc[saved["date"].eq("2025-01-02")]
         self.assertEqual(
-            list(first_date["horizon_days"].drop_duplicates()),
+            list(first_date["horizon_trading_days"].drop_duplicates()),
             [250, 90, 30],
         )
         first_horizon = first_date.loc[
-            first_date["horizon_days"].eq(250)
+            first_date["horizon_trading_days"].eq(250)
         ]
         self.assertEqual(
             list(first_horizon["ranking_group"].drop_duplicates()),
@@ -379,6 +390,66 @@ class SectorETFRankingHistoryTests(unittest.TestCase):
             3 * 2 * 3,
         )
 
+    def test_full_history_rebuild_replaces_old_data_without_email(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            metrics_dir = root / "metrics"
+            write_metrics_files(metrics_dir)
+            history_file = root / "rankings.csv"
+            history_file.write_text(
+                "old_calendar_day_history\n",
+                encoding="utf-8",
+            )
+            email_log = root / "email_log.csv"
+            email_log.write_text(
+                "ranking_date,sent_at_utc,status,recipient_count,"
+                "error_message\n"
+                "2025-01-01,2025-01-01T22:00:00Z,success,1,\n",
+                encoding="utf-8",
+            )
+            email_log_before = email_log.read_bytes()
+
+            with patch.object(
+                rankings,
+                "send_sector_etf_ranking_email",
+            ) as sender:
+                first = rankings.rebuild_sector_etf_ranking_history(
+                    metrics_dir=metrics_dir,
+                    ranking_history_file=history_file,
+                )
+                first_bytes = history_file.read_bytes()
+                second = rankings.rebuild_sector_etf_ranking_history(
+                    metrics_dir=metrics_dir,
+                    ranking_history_file=history_file,
+                )
+
+            saved = rankings.load_sector_etf_ranking_history(history_file)
+            second_bytes = history_file.read_bytes()
+            email_log_after = email_log.read_bytes()
+
+        sender.assert_not_called()
+        self.assertEqual(first.configured_etfs, 13)
+        self.assertEqual(first.common_dates, 251)
+        self.assertEqual(first.ranked_dates, 1)
+        self.assertEqual(first.skipped_unrankable_dates, 250)
+        self.assertEqual(first.ranking_rows, 18)
+        self.assertTrue(first.history_written)
+        self.assertFalse(second.history_written)
+        self.assertEqual(first_bytes, second_bytes)
+        self.assertEqual(email_log_before, email_log_after)
+        self.assertEqual(list(saved.columns), rankings.RANKING_COLUMNS)
+        self.assertFalse(
+            saved.duplicated(
+                [
+                    "date",
+                    "horizon_trading_days",
+                    "ranking_group",
+                    "rank",
+                ]
+            ).any()
+        )
+        self.assertEqual(saved.groupby("date").size().tolist(), [18])
+
 
 class SectorETFRankingEmailTests(unittest.TestCase):
     def setUp(self):
@@ -387,8 +458,8 @@ class SectorETFRankingEmailTests(unittest.TestCase):
         )
         self.email = rankings.format_sector_etf_ranking_email(
             self.built,
-            participating_count=11,
-            configured_count=11,
+            participating_count=13,
+            configured_count=13,
         )
 
     def test_plain_and_html_templates_have_all_required_sections(self):
@@ -399,17 +470,25 @@ class SectorETFRankingEmailTests(unittest.TestCase):
         self.assertFalse(self.email.incomplete)
         self.assertEqual(rankings.EMAIL_HORIZON_ORDER, (30, 90, 250))
         for horizon in rankings.EMAIL_HORIZON_ORDER:
-            self.assertIn(f"{horizon}-Day Return", self.email.plain_text)
-            self.assertIn(f"{horizon}-Day Return", self.email.html)
+            self.assertIn(
+                f"{horizon}-Trading-Day Return",
+                self.email.plain_text,
+            )
+            self.assertIn(
+                f"{horizon}-Trading-Day Return",
+                self.email.html,
+            )
         for content in (self.email.plain_text, self.email.html):
             self.assertLess(
-                content.index("30-Day Return"),
-                content.index("90-Day Return"),
+                content.index("30-Trading-Day Return"),
+                content.index("90-Trading-Day Return"),
             )
             self.assertLess(
-                content.index("90-Day Return"),
-                content.index("250-Day Return"),
+                content.index("90-Trading-Day Return"),
+                content.index("250-Trading-Day Return"),
             )
+            self.assertIn("fixed trading-session lookback", content)
+            self.assertNotIn("calendar-day", content.casefold())
         self.assertEqual(self.email.plain_text.count("Top 3"), 3)
         self.assertEqual(self.email.plain_text.count("Bottom 3"), 3)
         self.assertEqual(self.email.html.count("<table>"), 6)
@@ -420,6 +499,12 @@ class SectorETFRankingEmailTests(unittest.TestCase):
             "Price Source: Yahoo Finance Adjusted Close",
             self.email.plain_text,
         )
+        self.assertIn("Leadership Universe Size: 13", self.email.plain_text)
+        self.assertIn("Participating ETFs: 13/13", self.email.plain_text)
+        self.assertIn(
+            "11 primary sectors + SOXX semiconductors + IGV software",
+            self.email.plain_text,
+        )
         self.assertTrue(
             pd.api.types.is_numeric_dtype(self.built["adj_close_return"])
         )
@@ -428,9 +513,10 @@ class SectorETFRankingEmailTests(unittest.TestCase):
         before = self.built.copy(deep=True)
 
         for index, horizon in enumerate(rankings.EMAIL_HORIZON_ORDER):
-            heading = f"{horizon}-Day Return"
+            heading = f"{horizon}-Trading-Day Return"
             next_heading = (
-                f"{rankings.EMAIL_HORIZON_ORDER[index + 1]}-Day Return"
+                f"{rankings.EMAIL_HORIZON_ORDER[index + 1]}"
+                "-Trading-Day Return"
                 if index + 1 < len(rankings.EMAIL_HORIZON_ORDER)
                 else None
             )
@@ -477,7 +563,7 @@ class SectorETFRankingEmailTests(unittest.TestCase):
             }
             for ranking_group in rankings.RANKING_GROUP_ORDER:
                 selected = self.built.loc[
-                    self.built["horizon_days"].eq(horizon)
+                    self.built["horizon_trading_days"].eq(horizon)
                     & self.built["ranking_group"].eq(ranking_group)
                 ].sort_values("rank")
                 self.assertEqual(len(selected), 3)
@@ -501,6 +587,116 @@ class SectorETFRankingEmailTests(unittest.TestCase):
                     )
 
         pd.testing.assert_frame_equal(self.built, before)
+
+    def test_test_email_wrapper_adds_markers_and_preserves_formal_content(self):
+        test_email = rankings.format_sector_etf_test_email(
+            self.email,
+            ranking_date=RANKING_DATE,
+        )
+        self.assertEqual(
+            test_email.subject,
+            (
+                "[TEST][Investment OS] Sector ETF Leadership Rankings - "
+                "2025-01-02"
+            ),
+        )
+        for content in (test_email.plain_text, test_email.html):
+            self.assertIn(
+                "TEST EMAIL — Format validation only.",
+                content,
+            )
+            self.assertLess(
+                content.index("30-Trading-Day Return"),
+                content.index("90-Trading-Day Return"),
+            )
+            self.assertLess(
+                content.index("90-Trading-Day Return"),
+                content.index("250-Trading-Day Return"),
+            )
+            self.assertEqual(content.count("Top 3"), 3)
+            self.assertEqual(content.count("Bottom 3"), 3)
+        rankings.validate_sector_etf_test_email_preview(
+            test_email,
+            self.built,
+            ranking_date=RANKING_DATE,
+        )
+
+        incomplete = replace(self.email, incomplete=True)
+        incomplete_test = rankings.format_sector_etf_test_email(
+            incomplete,
+            ranking_date=RANKING_DATE,
+        )
+        self.assertTrue(
+            incomplete_test.subject.startswith(
+                "[TEST][INCOMPLETE][Investment OS]"
+            )
+        )
+
+    def test_real_test_mode_uses_renderer_once_without_mutating_data_or_log(
+        self,
+    ):
+        calls = []
+
+        def mock_sender(**kwargs):
+            calls.append(kwargs)
+            return 1
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            metrics_dir = root / "metrics"
+            config = write_metrics_files(metrics_dir)
+            latest = rankings.load_latest_sector_etf_metrics(
+                config,
+                metrics_dir=metrics_dir,
+            )
+            built = rankings.build_daily_sector_etf_rankings(latest)
+            history_file = root / "rankings.csv"
+            rankings.upsert_sector_etf_ranking_history(
+                built,
+                history_file,
+            )
+            history_before = history_file.read_bytes()
+            metrics_before = {
+                path.name: path.read_bytes()
+                for path in metrics_dir.glob("*.csv")
+            }
+
+            real_renderer = rankings.format_sector_etf_ranking_email
+            with (
+                patch.object(
+                    rankings,
+                    "format_sector_etf_ranking_email",
+                    wraps=real_renderer,
+                ) as renderer,
+                patch.object(
+                    rankings,
+                    "_upsert_sector_etf_email_log",
+                ) as production_log_writer,
+            ):
+                result = rankings.run_sector_etf_test_email(
+                    metrics_dir=metrics_dir,
+                    ranking_history_file=history_file,
+                    email_sender=mock_sender,
+                )
+
+            history_after = history_file.read_bytes()
+            metrics_after = {
+                path.name: path.read_bytes()
+                for path in metrics_dir.glob("*.csv")
+            }
+
+        renderer.assert_called_once()
+        production_log_writer.assert_not_called()
+        self.assertEqual(len(calls), 1)
+        self.assertIn("html_body", calls[0])
+        self.assertTrue(calls[0]["subject"].startswith("[TEST]"))
+        self.assertEqual(result.recipient_count, 1)
+        self.assertEqual(history_before, history_after)
+        self.assertEqual(metrics_before, metrics_after)
+
+    def test_test_email_and_force_email_are_rejected(self):
+        with self.assertRaises(SystemExit):
+            rankings.parse_args(["--test-email", "--force-email"])
 
     def test_success_duplicate_force_error_and_retry_are_idempotent(self):
         calls = []
@@ -660,7 +856,7 @@ class SectorETFRankingRunTests(unittest.TestCase):
             second_mtime = history_file.stat().st_mtime_ns
 
         self.assertEqual(first.ranking_date, RANKING_DATE)
-        self.assertEqual(first.participating_etfs, 11)
+        self.assertEqual(first.participating_etfs, 13)
         self.assertEqual(first.ranking_rows, 18)
         self.assertTrue(first.history_written)
         self.assertEqual(first.email_status, "not_requested")

@@ -165,7 +165,7 @@ def build_state_street_nav_history_url(
     """
 
     normalized_ticker = ticker.strip().upper()
-    configured = {etf.ticker for etf in config.etfs}
+    configured = {etf.ticker for etf in config.primary_sector_etfs}
     if normalized_ticker not in configured:
         raise ValueError(f"Ticker is not configured: {normalized_ticker}")
     return config.state_street_nav_history_url_template.format(
@@ -805,7 +805,9 @@ def migrate_sector_etf_fund_history_files(
     Migrate and validate configured ETF files without any network access.
     """
 
-    selected_etfs = tuple(etfs) if etfs is not None else config.etfs
+    selected_etfs = (
+        tuple(etfs) if etfs is not None else config.primary_sector_etfs
+    )
     return tuple(
         migrate_one_sector_etf_fund_history(
             etf,
@@ -901,21 +903,22 @@ def _select_etfs(
     config: SectorETFConfig,
     tickers: Sequence[str] | None,
 ) -> tuple[SectorETF, ...]:
+    state_street_etfs = config.primary_sector_etfs
     if not tickers:
-        return config.etfs
+        return state_street_etfs
     requested = {
         ticker.strip().upper()
         for ticker in tickers
         if ticker.strip()
     }
-    configured = {etf.ticker for etf in config.etfs}
+    configured = {etf.ticker for etf in state_street_etfs}
     invalid = requested - configured
     if invalid:
         raise ValueError(
             "Unconfigured sector ETF ticker(s): "
             + ", ".join(sorted(invalid))
         )
-    return tuple(etf for etf in config.etfs if etf.ticker in requested)
+    return tuple(etf for etf in state_street_etfs if etf.ticker in requested)
 
 
 def run_sector_etf_fund_history_update(
@@ -994,7 +997,7 @@ def run_sector_etf_fund_history_update(
 
     mode = "bootstrap" if bootstrap else "full_refresh" if full_refresh else "daily"
     return SectorETFFundHistorySummary(
-        configured_etfs=len(config.etfs),
+        configured_etfs=len(config.primary_sector_etfs),
         requested_etfs=len(selected_etfs),
         succeeded=len(results),
         failed=len(errors),

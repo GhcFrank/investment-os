@@ -54,7 +54,7 @@ RANKING_GROUP_ORDER = ("top", "bottom")
 EMAIL_HORIZON_ORDER = (30, 90, 250)
 RANKING_COLUMNS = [
     "date",
-    "horizon_days",
+    "horizon_trading_days",
     "ranking_group",
     "rank",
     "ticker",
@@ -74,6 +74,17 @@ EMAIL_LOG_COLUMNS = [
     "recipient_count",
     "error_message",
 ]
+TEST_EMAIL_BANNER_PLAIN = (
+    "TEST EMAIL — Format validation only.\n"
+    "This message does not represent a new daily production alert."
+)
+TEST_EMAIL_BANNER_HTML = (
+    '<div style="border:2px solid #b45309;background:#fffbeb;'
+    'padding:12px;margin-bottom:18px">'
+    "<strong>TEST EMAIL — Format validation only.</strong><br>"
+    "This message does not represent a new daily production alert."
+    "</div>"
+)
 
 
 class SectorETFRankingValidationError(ValueError):
@@ -120,6 +131,34 @@ class RankingEmailSendResult:
 
 
 @dataclass(frozen=True)
+class SectorETFTestEmailResult:
+    ranking_date: str
+    configured_etfs: int
+    participating_etfs: int
+    missing_tickers: tuple[str, ...]
+    recipient_count: int
+    email: SectorETFRankingEmail
+
+    def format(self) -> str:
+        lines = [
+            "Sector ETF test email summary:",
+            f"- ranking date: {self.ranking_date}",
+            (
+                "- participating ETFs: "
+                f"{self.participating_etfs}/{self.configured_etfs}"
+            ),
+            f"- subject: {self.email.subject}",
+            f"- recipient count: {self.recipient_count}",
+            "- production email log updated: no",
+        ]
+        if self.missing_tickers:
+            lines.append(
+                "- missing tickers: " + ", ".join(self.missing_tickers)
+            )
+        return "\n".join(lines)
+
+
+@dataclass(frozen=True)
 class SectorETFRankingSummary:
     ranking_date: str
     configured_etfs: int
@@ -157,10 +196,12 @@ class SectorETFRankingSummary:
             )
         if self.email_error:
             lines.append(f"- email error: {self.email_error}")
-        for horizon_days in SECTOR_ETF_RETURN_HORIZONS:
+        for horizon_trading_days in SECTOR_ETF_RETURN_HORIZONS:
             for ranking_group in RANKING_GROUP_ORDER:
                 selected = self.rankings.loc[
-                    self.rankings["horizon_days"].eq(horizon_days)
+                    self.rankings["horizon_trading_days"].eq(
+                        horizon_trading_days
+                    )
                     & self.rankings["ranking_group"].eq(ranking_group)
                 ].sort_values("rank")
                 values = ", ".join(
@@ -168,9 +209,40 @@ class SectorETFRankingSummary:
                     for row in selected.itertuples()
                 )
                 lines.append(
-                    f"- {horizon_days}d {ranking_group}: {values}"
+                    f"- {horizon_trading_days}td {ranking_group}: {values}"
                 )
         return "\n".join(lines)
+
+
+@dataclass(frozen=True)
+class SectorETFRankingHistoryRebuildSummary:
+    configured_etfs: int
+    common_dates: int
+    ranked_dates: int
+    skipped_unrankable_dates: int
+    ranking_rows: int
+    earliest_date: str
+    latest_date: str
+    history_written: bool
+
+    def format(self) -> str:
+        return "\n".join(
+            [
+                "Sector ETF ranking history rebuild summary:",
+                f"- configured ETFs: {self.configured_etfs}",
+                f"- common trading dates: {self.common_dates}",
+                f"- ranked dates: {self.ranked_dates}",
+                (
+                    "- skipped dates without six valid ETFs in every "
+                    f"horizon: {self.skipped_unrankable_dates}"
+                ),
+                f"- ranking rows: {self.ranking_rows}",
+                f"- date range: {self.earliest_date}..{self.latest_date}",
+                f"- ranking history written: {self.history_written}",
+                "- email requested: no",
+                "- production email log updated: no",
+            ]
+        )
 
 
 def _parse_ranking_date(value: str, *, option_name: str) -> str:
@@ -219,7 +291,7 @@ def load_latest_sector_etf_metrics(
     loaded: dict[str, pd.DataFrame] = {}
     latest_dates: dict[str, str] = {}
     missing_files: list[str] = []
-    for etf in config.etfs:
+    for etf in config.leadership_etfs:
         path = resolve_sector_etf_metrics_path(metrics_dir, etf)
         if not path.exists():
             missing_files.append(etf.ticker)
@@ -250,7 +322,7 @@ def load_latest_sector_etf_metrics(
 
     rows: list[dict[str, object]] = []
     missing_tickers = list(missing_files)
-    for etf in config.etfs:
+    for etf in config.leadership_etfs:
         frame = loaded.get(etf.ticker)
         if frame is None:
             continue
@@ -277,7 +349,7 @@ def load_latest_sector_etf_metrics(
         ranking_date=selected_date,
         rows=pd.DataFrame(rows),
         missing_tickers=tuple(sorted(set(missing_tickers))),
-        configured_count=len(config.etfs),
+        configured_count=len(config.leadership_etfs),
         latest_dates=latest_dates,
     )
     validate_ranking_inputs(latest)
@@ -306,12 +378,12 @@ def validate_ranking_inputs(latest: LatestSectorETFMetrics) -> None:
         "sector_name_cn",
         "adj_close",
     ]
-    for horizon_days in SECTOR_ETF_RETURN_HORIZONS:
+    for horizon_trading_days in SECTOR_ETF_RETURN_HORIZONS:
         required_columns.extend(
             [
-                f"reference_date_{horizon_days}d",
-                f"reference_adj_close_{horizon_days}d",
-                f"adj_close_return_{horizon_days}d",
+                f"reference_date_{horizon_trading_days}td",
+                f"reference_adj_close_{horizon_trading_days}td",
+                f"adj_close_return_{horizon_trading_days}td",
             ]
         )
     missing_columns = [
@@ -346,10 +418,16 @@ def validate_ranking_inputs(latest: LatestSectorETFMetrics) -> None:
             "Ranking input adj_close values must be finite and positive"
         )
 
-    for horizon_days in SECTOR_ETF_RETURN_HORIZONS:
-        return_column = f"adj_close_return_{horizon_days}d"
-        reference_date_column = f"reference_date_{horizon_days}d"
-        reference_price_column = f"reference_adj_close_{horizon_days}d"
+    for horizon_trading_days in SECTOR_ETF_RETURN_HORIZONS:
+        return_column = (
+            f"adj_close_return_{horizon_trading_days}td"
+        )
+        reference_date_column = (
+            f"reference_date_{horizon_trading_days}td"
+        )
+        reference_price_column = (
+            f"reference_adj_close_{horizon_trading_days}td"
+        )
         raw_returns = latest.rows[return_column]
         returns = pd.to_numeric(raw_returns, errors="coerce")
         invalid_returns = returns.isna() & raw_returns.notna()
@@ -384,21 +462,21 @@ def validate_ranking_inputs(latest: LatestSectorETFMetrics) -> None:
             or (reference_values <= 0).any()
         ):
             raise SectorETFRankingValidationError(
-                f"Ranking input has invalid {horizon_days}-day reference "
+                f"Ranking input has invalid {horizon_trading_days}-trading-"
+                "day reference "
                 "data"
             )
         ranking_dates = pd.to_datetime(
             latest.rows.loc[available, "date"],
             format="mixed",
         )
-        targets = ranking_dates - pd.Timedelta(days=horizon_days)
         if (
             reference_dates.loc[available].to_numpy()
-            > targets.to_numpy()
+            >= ranking_dates.to_numpy()
         ).any():
             raise SectorETFRankingValidationError(
-                f"Ranking input {horizon_days}-day reference date is after "
-                "the calendar-day target"
+                f"Ranking input {horizon_trading_days}-trading-day reference "
+                "date must precede the ranking date"
             )
         expected_returns = (
             adj_close.loc[available].to_numpy(dtype=float)
@@ -412,23 +490,29 @@ def validate_ranking_inputs(latest: LatestSectorETFMetrics) -> None:
             atol=1e-12,
         ):
             raise SectorETFRankingValidationError(
-                f"Ranking input {horizon_days}-day return formula is invalid"
+                f"Ranking input {horizon_trading_days}-trading-day return "
+                "formula is invalid"
             )
 
 
 def build_horizon_ranking(
     latest_rows: pd.DataFrame,
-    horizon_days: int,
+    horizon_trading_days: int,
 ) -> pd.DataFrame:
     """Build deterministic top-three and bottom-three rows for one horizon."""
 
-    if horizon_days not in SECTOR_ETF_RETURN_HORIZONS:
+    if horizon_trading_days not in SECTOR_ETF_RETURN_HORIZONS:
         raise ValueError(
-            f"Unsupported sector ETF return horizon: {horizon_days}"
+            "Unsupported sector ETF return horizon: "
+            f"{horizon_trading_days}"
         )
-    return_column = f"adj_close_return_{horizon_days}d"
-    reference_date_column = f"reference_date_{horizon_days}d"
-    reference_price_column = f"reference_adj_close_{horizon_days}d"
+    return_column = f"adj_close_return_{horizon_trading_days}td"
+    reference_date_column = (
+        f"reference_date_{horizon_trading_days}td"
+    )
+    reference_price_column = (
+        f"reference_adj_close_{horizon_trading_days}td"
+    )
     working = latest_rows.copy()
     working[return_column] = pd.to_numeric(
         working[return_column],
@@ -438,8 +522,9 @@ def build_horizon_ranking(
     universe_size = len(valid)
     if universe_size < MIN_RANKING_UNIVERSE_SIZE:
         raise InsufficientRankingUniverseError(
-            f"{horizon_days}-day ranking has only {universe_size} valid ETF "
-            f"values; at least {MIN_RANKING_UNIVERSE_SIZE} are required"
+            f"{horizon_trading_days}-trading-day ranking has only "
+            f"{universe_size} valid ETF values; at least "
+            f"{MIN_RANKING_UNIVERSE_SIZE} are required"
         )
 
     top = valid.sort_values(
@@ -454,7 +539,8 @@ def build_horizon_ranking(
     ).head(3)
     if set(top["ticker"]) & set(bottom["ticker"]):
         raise InsufficientRankingUniverseError(
-            f"{horizon_days}-day top and bottom rankings overlap"
+            f"{horizon_trading_days}-trading-day top and bottom rankings "
+            "overlap"
         )
 
     output_rows: list[dict[str, object]] = []
@@ -463,7 +549,7 @@ def build_horizon_ranking(
             output_rows.append(
                 {
                     "date": str(row.date),
-                    "horizon_days": horizon_days,
+                    "horizon_trading_days": horizon_trading_days,
                     "ranking_group": ranking_group,
                     "rank": rank,
                     "ticker": str(row.ticker),
@@ -488,7 +574,11 @@ def build_horizon_ranking(
 
 def _sort_rankings(rankings: pd.DataFrame) -> pd.DataFrame:
     output = rankings.copy()
-    for column in ("horizon_days", "rank", "universe_size"):
+    for column in (
+        "horizon_trading_days",
+        "rank",
+        "universe_size",
+    ):
         output[column] = pd.to_numeric(
             output[column],
             errors="raise",
@@ -519,7 +609,9 @@ def _sort_rankings(rankings: pd.DataFrame) -> pd.DataFrame:
     group_order = {
         group: index for index, group in enumerate(RANKING_GROUP_ORDER)
     }
-    output["_horizon_order"] = output["horizon_days"].map(horizon_order)
+    output["_horizon_order"] = output["horizon_trading_days"].map(
+        horizon_order
+    )
     output["_group_order"] = output["ranking_group"].map(group_order)
     output = output.sort_values(
         ["date", "_horizon_order", "_group_order", "rank"],
@@ -538,8 +630,8 @@ def build_daily_sector_etf_rankings(
     validate_ranking_inputs(latest)
     rankings = pd.concat(
         [
-            build_horizon_ranking(latest.rows, horizon_days)
-            for horizon_days in SECTOR_ETF_RETURN_HORIZONS
+            build_horizon_ranking(latest.rows, horizon_trading_days)
+            for horizon_trading_days in SECTOR_ETF_RETURN_HORIZONS
         ],
         ignore_index=True,
     )
@@ -577,7 +669,10 @@ def validate_sector_etf_rankings(
             "Daily ranking output must contain exactly one date"
         )
 
-    horizons = pd.to_numeric(rankings["horizon_days"], errors="coerce")
+    horizons = pd.to_numeric(
+        rankings["horizon_trading_days"],
+        errors="coerce",
+    )
     ranks = pd.to_numeric(rankings["rank"], errors="coerce")
     universe_sizes = pd.to_numeric(
         rankings["universe_size"],
@@ -587,7 +682,7 @@ def validate_sector_etf_rankings(
         set(SECTOR_ETF_RETURN_HORIZONS)
     ):
         raise SectorETFRankingValidationError(
-            "Ranking data contains unsupported horizon_days"
+            "Ranking data contains unsupported horizon_trading_days"
         )
     if ranks.isna().any() or not set(ranks.astype(int)).issubset({1, 2, 3}):
         raise SectorETFRankingValidationError(
@@ -607,7 +702,12 @@ def validate_sector_etf_rankings(
             "Ranking data contains invalid ranking_group"
         )
 
-    key_columns = ["date", "horizon_days", "ranking_group", "rank"]
+    key_columns = [
+        "date",
+        "horizon_trading_days",
+        "ranking_group",
+        "rank",
+    ]
     if rankings.duplicated(key_columns).any():
         raise SectorETFRankingValidationError(
             "Ranking data contains duplicate primary keys"
@@ -657,55 +757,77 @@ def validate_sector_etf_rankings(
         raise SectorETFRankingValidationError(
             "Ranking data contains invalid reference dates"
         )
-    targets = parsed_dates - pd.to_timedelta(horizons, unit="D")
-    if (reference_dates > targets).any():
+    if (reference_dates >= parsed_dates).any():
         raise SectorETFRankingValidationError(
-            "Ranking reference date must be on or before its target date"
+            "Ranking reference date must precede its ranking date"
         )
 
-    for _, daily_rows in rankings.groupby(
-        ["date", "horizon_days"],
+    daily_keys = ["date", "horizon_trading_days"]
+    universe_counts = rankings.groupby(
+        daily_keys,
         sort=False,
+    )["universe_size"].nunique()
+    if universe_counts.ne(1).any():
+        raise SectorETFRankingValidationError(
+            "Each date/horizon must have one universe_size"
+        )
+
+    group_keys = [*daily_keys, "ranking_group"]
+    grouped = rankings.groupby(group_keys, sort=False)
+    group_sizes = grouped.size()
+    rank_counts = grouped["rank"].nunique()
+    rank_minimums = grouped["rank"].min()
+    rank_maximums = grouped["rank"].max()
+    if (
+        group_sizes.ne(3).any()
+        or rank_counts.ne(3).any()
+        or rank_minimums.ne(1).any()
+        or rank_maximums.ne(3).any()
     ):
-        if daily_rows["universe_size"].astype(int).nunique() != 1:
-            raise SectorETFRankingValidationError(
-                "Each date/horizon must have one universe_size"
-            )
-        for ranking_group in RANKING_GROUP_ORDER:
-            group = daily_rows.loc[
-                daily_rows["ranking_group"].eq(ranking_group)
-            ]
-            if len(group) != 3 or set(group["rank"].astype(int)) != {1, 2, 3}:
-                raise SectorETFRankingValidationError(
-                    "Each date/horizon/group must contain ranks 1, 2, and 3"
-                )
-            ordered = group.sort_values("rank", kind="stable")
-            expected = group.sort_values(
-                ["adj_close_return", "ticker"],
-                ascending=[ranking_group == "bottom", True],
-                kind="stable",
-            )
-            if list(ordered["ticker"]) != list(expected["ticker"]):
-                raise SectorETFRankingValidationError(
-                    f"{ranking_group} rank order is inconsistent with return "
-                    "and ticker tie-break"
-                )
-        top_tickers = set(
-            daily_rows.loc[
-                daily_rows["ranking_group"].eq("top"),
-                "ticker",
-            ]
+        raise SectorETFRankingValidationError(
+            "Each date/horizon/group must contain ranks 1, 2, and 3"
         )
-        bottom_tickers = set(
-            daily_rows.loc[
-                daily_rows["ranking_group"].eq("bottom"),
-                "ticker",
-            ]
+
+    for ranking_group in RANKING_GROUP_ORDER:
+        selected = rankings.loc[
+            rankings["ranking_group"].eq(ranking_group)
+        ]
+        ordered = selected.sort_values(
+            [*daily_keys, "rank"],
+            kind="stable",
         )
-        if top_tickers & bottom_tickers:
+        expected = selected.sort_values(
+            [*daily_keys, "adj_close_return", "ticker"],
+            ascending=[
+                True,
+                True,
+                ranking_group == "bottom",
+                True,
+            ],
+            kind="stable",
+        )
+        if list(ordered["ticker"]) != list(expected["ticker"]):
             raise SectorETFRankingValidationError(
-                "Top and bottom ranking groups cannot overlap"
+                f"{ranking_group} rank order is inconsistent with return "
+                "and ticker tie-break"
             )
+
+    top = rankings.loc[
+        rankings["ranking_group"].eq("top"),
+        [*daily_keys, "ticker"],
+    ]
+    bottom = rankings.loc[
+        rankings["ranking_group"].eq("bottom"),
+        [*daily_keys, "ticker"],
+    ]
+    if not top.merge(
+        bottom,
+        on=[*daily_keys, "ticker"],
+        how="inner",
+    ).empty:
+        raise SectorETFRankingValidationError(
+            "Top and bottom ranking groups cannot overlap"
+        )
 
 
 def _canonical_csv_text(
@@ -806,21 +928,174 @@ def upsert_sector_etf_ranking_history(
     )
 
 
+def rebuild_sector_etf_ranking_history(
+    *,
+    config_path: Path | str = DEFAULT_CONFIG_FILE,
+    metrics_dir: Path | str = DEFAULT_METRICS_DIR,
+    ranking_history_file: Path | str = DEFAULT_RANKING_HISTORY_FILE,
+) -> SectorETFRankingHistoryRebuildSummary:
+    """
+    Replace ranking history from local metrics without sending email.
+
+    Only dates present in every configured leadership ETF metrics file are
+    considered. A common date is skipped when any horizon has fewer than six
+    valid returns, because disjoint Top 3 and Bottom 3 groups would be
+    impossible.
+    """
+
+    config = load_sector_etf_config(config_path)
+    loaded: dict[str, pd.DataFrame] = {}
+    for etf in config.leadership_etfs:
+        path = resolve_sector_etf_metrics_path(metrics_dir, etf)
+        if not path.exists():
+            raise FileNotFoundError(
+                f"Metrics file not found for {etf.ticker}: {path}"
+            )
+        loaded[etf.ticker] = _load_one_metrics_file(path, etf.ticker)
+
+    common_dates = sorted(
+        set.intersection(
+            *(
+                set(frame["date"].astype(str))
+                for frame in loaded.values()
+            )
+        )
+    )
+    if not common_dates:
+        raise SectorETFRankingValidationError(
+            "Leadership metrics have no common trading date"
+        )
+
+    common_date_set = set(common_dates)
+    enriched_frames: list[pd.DataFrame] = []
+    for etf in config.leadership_etfs:
+        frame = loaded[etf.ticker]
+        selected = frame.loc[
+            frame["date"].astype(str).isin(common_date_set)
+        ].copy()
+        selected["date"] = selected["date"].astype(str)
+        selected["ticker"] = etf.ticker
+        selected["sector_id"] = etf.sector_id
+        selected["sector_name"] = etf.sector_name
+        selected["sector_name_cn"] = etf.sector_name_cn
+        enriched_frames.append(selected)
+    combined = pd.concat(enriched_frames, ignore_index=True)
+
+    horizon_frames: dict[int, pd.DataFrame] = {}
+    rankable_dates = set(common_dates)
+    for horizon_trading_days in SECTOR_ETF_RETURN_HORIZONS:
+        suffix = f"{horizon_trading_days}td"
+        working = combined[
+            [
+                "date",
+                "ticker",
+                "sector_id",
+                "sector_name",
+                "sector_name_cn",
+                "adj_close",
+                f"reference_date_{suffix}",
+                f"reference_adj_close_{suffix}",
+                f"adj_close_return_{suffix}",
+            ]
+        ].rename(
+            columns={
+                f"reference_date_{suffix}": "reference_date",
+                f"reference_adj_close_{suffix}": "reference_adj_close",
+                f"adj_close_return_{suffix}": "adj_close_return",
+            }
+        )
+        working["adj_close_return"] = pd.to_numeric(
+            working["adj_close_return"],
+            errors="coerce",
+        )
+        valid = working.loc[
+            working["adj_close_return"].notna()
+        ].copy()
+        universe_sizes = valid.groupby("date", sort=False).size()
+        eligible_dates = set(
+            universe_sizes.loc[
+                universe_sizes >= MIN_RANKING_UNIVERSE_SIZE
+            ].index.astype(str)
+        )
+        rankable_dates &= eligible_dates
+        valid["universe_size"] = (
+            valid["date"].map(universe_sizes).astype(int)
+        )
+        horizon_frames[horizon_trading_days] = valid
+
+    if not rankable_dates:
+        raise InsufficientRankingUniverseError(
+            "No common trading date has enough valid ETFs for every horizon"
+        )
+
+    ranked_groups: list[pd.DataFrame] = []
+    for horizon_trading_days in SECTOR_ETF_RETURN_HORIZONS:
+        valid = horizon_frames[horizon_trading_days].loc[
+            horizon_frames[horizon_trading_days]["date"].isin(
+                rankable_dates
+            )
+        ]
+        for ranking_group in RANKING_GROUP_ORDER:
+            selected = valid.sort_values(
+                ["date", "adj_close_return", "ticker"],
+                ascending=[
+                    True,
+                    ranking_group == "bottom",
+                    True,
+                ],
+                kind="stable",
+            )
+            selected = (
+                selected.groupby("date", sort=False)
+                .head(3)
+                .copy()
+            )
+            selected["ranking_group"] = ranking_group
+            selected["rank"] = (
+                selected.groupby("date", sort=False).cumcount() + 1
+            )
+            selected["horizon_trading_days"] = horizon_trading_days
+            ranked_groups.append(selected.reindex(columns=RANKING_COLUMNS))
+
+    history = _sort_rankings(
+        pd.concat(ranked_groups, ignore_index=True)
+    ).reindex(columns=RANKING_COLUMNS)
+    validate_sector_etf_rankings(history)
+    history_path = Path(ranking_history_file)
+    history_path.parent.mkdir(parents=True, exist_ok=True)
+    history_written = _write_csv_if_changed(
+        history,
+        history_path,
+        RANKING_COLUMNS,
+        float_format=METRICS_FLOAT_FORMAT,
+    )
+    return SectorETFRankingHistoryRebuildSummary(
+        configured_etfs=len(config.leadership_etfs),
+        common_dates=len(common_dates),
+        ranked_dates=int(history["date"].nunique()),
+        skipped_unrankable_dates=len(common_dates) - len(rankable_dates),
+        ranking_rows=len(history),
+        earliest_date=str(history["date"].iloc[0]),
+        latest_date=str(history["date"].iloc[-1]),
+        history_written=history_written,
+    )
+
+
 def _format_return(value: object) -> str:
     return f"{float(value):.2%}"
 
 
 def _plain_ranking_table(
     rankings: pd.DataFrame,
-    horizon_days: int,
+    horizon_trading_days: int,
     ranking_group: str,
 ) -> str:
     selected = rankings.loc[
-        rankings["horizon_days"].eq(horizon_days)
+        rankings["horizon_trading_days"].eq(horizon_trading_days)
         & rankings["ranking_group"].eq(ranking_group)
     ].sort_values("rank")
     lines = [
-        "Rank | Ticker | Sector | Return | Adjusted Close | "
+        "Rank | Ticker | Sector / Industry | Return | Adjusted Close | "
         "Reference Date | Reference Adjusted Close"
     ]
     for row in selected.itertuples():
@@ -835,11 +1110,11 @@ def _plain_ranking_table(
 
 def _html_ranking_table(
     rankings: pd.DataFrame,
-    horizon_days: int,
+    horizon_trading_days: int,
     ranking_group: str,
 ) -> str:
     selected = rankings.loc[
-        rankings["horizon_days"].eq(horizon_days)
+        rankings["horizon_trading_days"].eq(horizon_trading_days)
         & rankings["ranking_group"].eq(ranking_group)
     ].sort_values("rank")
     rows = []
@@ -862,7 +1137,7 @@ def _html_ranking_table(
         )
     return (
         "<table><thead><tr>"
-        "<th>Rank</th><th>Ticker</th><th>Sector</th><th>Return</th>"
+        "<th>Rank</th><th>Ticker</th><th>Sector / Industry</th><th>Return</th>"
         "<th>Adjusted Close</th><th>Reference Date</th>"
         "<th>Reference Adjusted Close</th>"
         "</tr></thead><tbody>"
@@ -884,7 +1159,7 @@ def format_sector_etf_ranking_email(
     ranking_date = str(rankings["date"].iloc[0])
     horizon_sizes = {
         int(horizon): int(group["universe_size"].iloc[0])
-        for horizon, group in rankings.groupby("horizon_days")
+        for horizon, group in rankings.groupby("horizon_trading_days")
     }
     incomplete = (
         participating_count != configured_count
@@ -908,7 +1183,12 @@ def format_sector_etf_ranking_email(
     )
     header_lines = [
         f"Ranking Date: {ranking_date}",
-        f"Universe Size: {participating_count}/{configured_count}",
+        f"Leadership Universe Size: {configured_count}",
+        (
+            "Leadership Universe: 11 primary sectors + SOXX semiconductors "
+            "+ IGV software"
+        ),
+        f"Participating ETFs: {participating_count}/{configured_count}",
         f"Data Completeness: {completeness}",
         f"Missing Tickers: {missing_text}",
         "Price Source: Yahoo Finance Adjusted Close",
@@ -916,34 +1196,34 @@ def format_sector_etf_ranking_email(
             "Return Definition: Current Adj Close / Reference Adj Close - 1"
         ),
         (
-            "Reference Rule: Calendar-day lookback, using the latest trading "
-            "day on or before the target date"
+            "Reference Rule: Fixed trading-session lookback within each "
+            "ETF's own observed Yahoo price history"
         ),
     ]
     plain_sections = ["\n".join(header_lines)]
     html_sections = [
-        "<h1>Sector ETF Rotation Rankings</h1>",
+        "<h1>Sector and Industry ETF Leadership Rankings</h1>",
         "<ul>"
         + "".join(
             f"<li>{html.escape(line)}</li>" for line in header_lines
         )
         + "</ul>",
     ]
-    for horizon_days in EMAIL_HORIZON_ORDER:
+    for horizon_trading_days in EMAIL_HORIZON_ORDER:
         plain_sections.append(
-            f"{horizon_days}-Day Return\n"
-            f"Valid ETFs: {horizon_sizes[horizon_days]}"
+            f"{horizon_trading_days}-Trading-Day Return\n"
+            f"Valid ETFs: {horizon_sizes[horizon_trading_days]}"
         )
         html_sections.append(
-            f"<h2>{horizon_days}-Day Return</h2>"
-            f"<p>Valid ETFs: {horizon_sizes[horizon_days]}</p>"
+            f"<h2>{horizon_trading_days}-Trading-Day Return</h2>"
+            f"<p>Valid ETFs: {horizon_sizes[horizon_trading_days]}</p>"
         )
         for ranking_group, label in (("top", "Top 3"), ("bottom", "Bottom 3")):
             plain_sections.append(
                 f"{label}\n"
                 + _plain_ranking_table(
                     rankings,
-                    horizon_days,
+                    horizon_trading_days,
                     ranking_group,
                 )
             )
@@ -951,21 +1231,23 @@ def format_sector_etf_ranking_email(
             html_sections.append(
                 _html_ranking_table(
                     rankings,
-                    horizon_days,
+                    horizon_trading_days,
                     ranking_group,
                 )
             )
 
     footer = (
-        "Returns are calculated from adjusted close prices using "
-        "calendar-day lookbacks.\n"
+        "Returns are calculated from adjusted close prices over fixed "
+        "trading-session lookbacks. A 30-trading-day return uses the "
+        "adjusted close from 30 ETF trading observations earlier.\n"
         "This is a quantitative ranking summary, not an investment "
         "recommendation."
     )
     plain_sections.append(footer)
     html_sections.append(
-        "<p>Returns are calculated from adjusted close prices using "
-        "calendar-day lookbacks.<br>"
+        "<p>Returns are calculated from adjusted close prices over fixed "
+        "trading-session lookbacks. A 30-trading-day return uses the "
+        "adjusted close from 30 ETF trading observations earlier.<br>"
         "This is a quantitative ranking summary, not an investment "
         "recommendation.</p>"
     )
@@ -985,6 +1267,211 @@ def format_sector_etf_ranking_email(
         plain_text="\n\n".join(plain_sections),
         html=html_body,
         incomplete=incomplete,
+    )
+
+
+def format_sector_etf_test_email(
+    production_email: SectorETFRankingEmail,
+    *,
+    ranking_date: str,
+) -> SectorETFRankingEmail:
+    """Add test-only subject and banner without duplicating the renderer."""
+
+    subject = (
+        f"[TEST][INCOMPLETE][Investment OS] "
+        f"Sector ETF Leadership Rankings - {ranking_date}"
+        if production_email.incomplete
+        else (
+            f"[TEST][Investment OS] Sector ETF Leadership Rankings - "
+            f"{ranking_date}"
+        )
+    )
+    body_tag = "<body>"
+    if body_tag not in production_email.html:
+        raise SectorETFRankingValidationError(
+            "Rendered HTML email has no body element"
+        )
+    return SectorETFRankingEmail(
+        subject=subject,
+        plain_text=(
+            TEST_EMAIL_BANNER_PLAIN
+            + "\n\n"
+            + production_email.plain_text
+        ),
+        html=production_email.html.replace(
+            body_tag,
+            body_tag + TEST_EMAIL_BANNER_HTML,
+            1,
+        ),
+        incomplete=production_email.incomplete,
+    )
+
+
+def validate_sector_etf_test_email_preview(
+    email_message: SectorETFRankingEmail,
+    rankings: pd.DataFrame,
+    *,
+    ranking_date: str,
+) -> None:
+    """Fail closed before a real test send if the preview is malformed."""
+
+    validate_sector_etf_rankings(rankings, require_single_date=True)
+    if not email_message.subject.startswith("[TEST]"):
+        raise SectorETFRankingValidationError(
+            "Test email subject must start with [TEST]"
+        )
+    if ranking_date not in email_message.subject:
+        raise SectorETFRankingValidationError(
+            "Test email subject does not contain the ranking date"
+        )
+    for content_name, content in (
+        ("plain text", email_message.plain_text),
+        ("HTML", email_message.html),
+    ):
+        if TEST_EMAIL_BANNER_PLAIN.splitlines()[0] not in content:
+            raise SectorETFRankingValidationError(
+                f"Test banner is missing from {content_name}"
+            )
+        positions = [
+            content.find(f"{horizon}-Trading-Day Return")
+            for horizon in EMAIL_HORIZON_ORDER
+        ]
+        if any(position < 0 for position in positions) or positions != sorted(
+            positions
+        ):
+            raise SectorETFRankingValidationError(
+                f"Test email {content_name} horizon order is invalid"
+            )
+        if content.count("Top 3") != 3 or content.count("Bottom 3") != 3:
+            raise SectorETFRankingValidationError(
+                f"Test email {content_name} ranking groups are incomplete"
+            )
+        lowered = content.casefold()
+        if any(marker in lowered for marker in ("none%", "nan%")):
+            raise SectorETFRankingValidationError(
+                f"Test email {content_name} contains an invalid return"
+            )
+        if f"Ranking Date: {ranking_date}" not in content:
+            raise SectorETFRankingValidationError(
+                f"Test email {content_name} ranking date is inconsistent"
+            )
+
+        for index, horizon_trading_days in enumerate(EMAIL_HORIZON_ORDER):
+            start = positions[index]
+            end = (
+                positions[index + 1]
+                if index + 1 < len(positions)
+                else len(content)
+            )
+            section = content[start:end]
+            if section.find("Top 3") > section.find("Bottom 3"):
+                raise SectorETFRankingValidationError(
+                    f"Test email {content_name} "
+                    f"{horizon_trading_days}td group order is invalid"
+                )
+
+    if email_message.html.count("<table>") != 6 or (
+        email_message.html.count("</table>") != 6
+    ):
+        raise SectorETFRankingValidationError(
+            "Test email HTML tables are unbalanced"
+        )
+    for row in rankings.itertuples(index=False):
+        percentage = _format_return(row.adj_close_return)
+        for content_name, content in (
+            ("plain text", email_message.plain_text),
+            ("HTML", email_message.html),
+        ):
+            if str(row.ticker) not in content or percentage not in content:
+                raise SectorETFRankingValidationError(
+                    f"Test email {content_name} is missing ranking values"
+                )
+
+
+def load_sector_etf_rankings_for_test_email(
+    ranking_history_file: Path | str = DEFAULT_RANKING_HISTORY_FILE,
+    *,
+    ranking_date: str | None = None,
+) -> pd.DataFrame:
+    """Read one already-persisted ranking date without rewriting history."""
+
+    history = load_sector_etf_ranking_history(ranking_history_file)
+    if history.empty:
+        raise SectorETFRankingValidationError(
+            "No persisted sector ETF rankings are available for test email"
+        )
+    selected_date = (
+        _parse_ranking_date(ranking_date, option_name="ranking_date")
+        if ranking_date is not None
+        else str(history["date"].max())
+    )
+    selected = history.loc[
+        history["date"].astype(str).eq(selected_date)
+    ].copy()
+    if selected.empty:
+        raise SectorETFRankingValidationError(
+            f"Ranking date is not present in ranking history: {selected_date}"
+        )
+    selected = _sort_rankings(selected).reindex(columns=RANKING_COLUMNS)
+    validate_sector_etf_rankings(selected, require_single_date=True)
+    return selected
+
+
+def run_sector_etf_test_email(
+    *,
+    config_path: Path | str = DEFAULT_CONFIG_FILE,
+    metrics_dir: Path | str = DEFAULT_METRICS_DIR,
+    ranking_history_file: Path | str = DEFAULT_RANKING_HISTORY_FILE,
+    ranking_date: str | None = None,
+    email_sender: Callable[..., int] = send_email,
+) -> SectorETFTestEmailResult:
+    """Send one marked test email without touching production idempotency."""
+
+    config = load_sector_etf_config(config_path)
+    rankings = load_sector_etf_rankings_for_test_email(
+        ranking_history_file,
+        ranking_date=ranking_date,
+    )
+    selected_date = str(rankings["date"].iloc[0])
+    latest = load_latest_sector_etf_metrics(
+        config,
+        metrics_dir=metrics_dir,
+        ranking_date=selected_date,
+    )
+    production_email = format_sector_etf_ranking_email(
+        rankings,
+        participating_count=latest.participating_count,
+        configured_count=latest.configured_count,
+        missing_tickers=latest.missing_tickers,
+    )
+    test_email = format_sector_etf_test_email(
+        production_email,
+        ranking_date=selected_date,
+    )
+    validate_sector_etf_test_email_preview(
+        test_email,
+        rankings,
+        ranking_date=selected_date,
+    )
+    recipient_count = int(
+        email_sender(
+            subject=test_email.subject,
+            body=test_email.plain_text,
+            html_body=test_email.html,
+        )
+        or 0
+    )
+    if recipient_count <= 0:
+        raise RuntimeError(
+            "Test email sender reported no configured recipients"
+        )
+    return SectorETFTestEmailResult(
+        ranking_date=selected_date,
+        configured_etfs=latest.configured_count,
+        participating_etfs=latest.participating_count,
+        missing_tickers=latest.missing_tickers,
+        recipient_count=recipient_count,
+        email=test_email,
     )
 
 
@@ -1200,8 +1687,8 @@ def run_sector_etf_daily_ranking(
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Build local sector ETF 250/90/30-day rankings and optionally "
-            "email them."
+            "Build local sector ETF 30/90/250-trading-day rankings and "
+            "optionally email them."
         )
     )
     email_mode = parser.add_mutually_exclusive_group()
@@ -1215,6 +1702,22 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Render and print both email alternatives without sending.",
     )
+    email_mode.add_argument(
+        "--test-email",
+        action="store_true",
+        help=(
+            "Send one marked format-validation email without updating "
+            "production ranking history or email logs."
+        ),
+    )
+    email_mode.add_argument(
+        "--rebuild-history",
+        action="store_true",
+        help=(
+            "Replace complete local ranking history from local metrics "
+            "without sending email or updating the production email log."
+        ),
+    )
     parser.add_argument(
         "--force-email",
         action="store_true",
@@ -1225,8 +1728,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         help="Exact metrics trading date in YYYY-MM-DD format.",
     )
     args = parser.parse_args(argv)
+    if args.test_email and args.force_email:
+        parser.error("--test-email cannot be combined with --force-email")
     if args.force_email and not args.send_email:
         parser.error("--force-email requires --send-email")
+    if args.rebuild_history and args.ranking_date:
+        parser.error("--rebuild-history cannot be combined with --ranking-date")
     if args.ranking_date:
         try:
             _parse_ranking_date(
@@ -1245,6 +1752,16 @@ def main() -> None:
     )
     args = parse_args()
     try:
+        if args.rebuild_history:
+            rebuild_summary = rebuild_sector_etf_ranking_history()
+            print(rebuild_summary.format())
+            return
+        if args.test_email:
+            test_result = run_sector_etf_test_email(
+                ranking_date=args.ranking_date,
+            )
+            print(test_result.format())
+            return
         summary = run_sector_etf_daily_ranking(
             ranking_date=args.ranking_date,
             send_email_message=args.send_email,
