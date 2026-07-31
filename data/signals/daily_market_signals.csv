@@ -1,54 +1,52 @@
 signal_date,ticker,company,daily_return,weekly_return,monthly_return,volume_ratio,group_type,group_name,signal_type,message
-2026-07-31,ANET,Arista,0.0579463697564419,0.039887274921029,0.0858840353976075,0.7896433214750286,,,single_stock_big_up,ANET single-day gain >= 5%.
-2026-07-31,ANET,Arista,0.0579463697564419,0.039887274921029,0.0858840353976075,0.7896433214750286,,,near_52w_high,ANET is within 5% of its 52-week high.
-2026-07-31,ANET,Arista,0.0579463697564419,0.039887274921029,0.0858840353976075,0.7896433214750286,,,strong_trend,ANET is above 20/50/200-day moving averages.
-2026-07-31,CRDO,Credo,0.0527650711842839,-0.0068495965136511,-0.1829479893722642,0.8008677407716367,,,single_stock_big_up,CRDO single-day gain >= 5%.
-2026-07-31,VRT,Vertiv,0.0792527418870192,-0.154394506247086,-0.2115792556913732,1.396424171930911,,,single_stock_big_up,VRT single-day gain >= 5%.
-2026-07-31,ETN,Eaton,0.0764558025596617,0.0306877364608129,0.0100895047094224,1.383313578015264,,,single_stock_big_up,ETN single-day gain >= 5%.
-2026-07-31,ETN,Eaton,0.0764558025596617,0.0306877364608129,0.0100895047094224,1.383313578015264,,,near_52w_high,ETN is within 5% of its 52-week high.
-2026-07-31,ETN,Eaton,0.0764558025596617,0.0306877364608129,0.0100895047094224,1.383313578015264,,,strong_trend,ETN is above 20/50/200-day moving averages.
-2026-07-31,MRVL,Marvell,0.0516093360478937,-0.0075683532566473,-0.2912789409284997,0.8491311012060504,,,single_stock_big_up,MRVL single-day gain >= 5%.
-2026-07-31,COHR,Coherent,0.0674937674591402,-0.0585007212518355,-0.2788010320926715,0.8823274322253842,,,single_stock_big_up,COHR single-day gain >= 5%.
-2026-07-31,DDOG,Datadog,0.0138516579331271,0.1029733375439332,0.0294917856509464,0.7158470602121291,,,near_52w_high,DDOG is within 5% of its 52-week high.
-2026-07-31,DDOG,Datadog,0.0138516579331271,0.1029733375439332,0.0294917856509464,0.7158470602121291,,,strong_trend,DDOG is above 20/50/200-day moving averages.
-2026-07-31,AEHR,Aehr Test Systems,0.0516455502726662,0.0592242749101181,-0.0425204779617308,0.5160651246694065,,,single_stock_big_up,AEHR single-day gain >= 5%.
-2026-07-31,APH,Amphenol,0.0119821874507111,0.0593764495325066,-0.0608814338406306,0.9386470973838972,,,strong_trend,APH is above 20/50/200-day moving averages.
-2026-07-31,NET,Cloudflare,-0.0100039585945653,0.0702078932207204,0.1390320955569053,0.880602682310402,,,near_52w_high,NET is within 5% of its 52-week high.
-2026-07-31,NET,Cloudflare,-0.0100039585945653,0.0702078932207204,0.1390320955569053,0.880602682310402,,,strong_trend,NET is above 20/50/200-day moving averages.
-2026-07-31,SNOW,Snowflake,-0.0099077193910284,0.1010464731055729,0.1300069379906279,1.082400209781042,,,near_52w_high,SNOW is within 5% of its 52-week high.
-2026-07-31,SNOW,Snowflake,-0.0099077193910284,0.1010464731055729,0.1300069379906279,1.082400209781042,,,strong_trend,SNOW is above 20/50/200-day moving averages.
-2026-07-31,,,0.019739795987356774,-0.010373692579700776,-0.14014036476556102,0.7991057274030916,theme,AI Infrastructure,group_summary,"theme=AI Infrastructure: avg daily return=1.97%, avg weekly return=-1.04%, avg volume ratio=0.80"
-2026-07-31,,,-0.015283872458309034,0.024464815853171732,-0.19401689382324117,0.7312450791401393,theme,Nuclear,group_summary,"theme=Nuclear: avg daily return=-1.53%, avg weekly return=2.45%, avg volume ratio=0.73"
-2026-07-31,,,0.018318264407697134,0.10271602540115798,-0.23421084914347157,0.6795204468917558,theme,Quantum,group_summary,"theme=Quantum: avg daily return=1.83%, avg weekly return=10.27%, avg volume ratio=0.68"
-2026-07-31,,,0.003416619398541272,0.08467212138854881,0.033895754277172584,0.7656215164433505,theme,Software,group_summary,"theme=Software: avg daily return=0.34%, avg weekly return=8.47%, avg volume ratio=0.77"
-2026-07-31,,,0.01462586367570425,-0.0044102703774465506,-0.31652639526700305,0.7631728459725844,theme,Space Economy,group_summary,"theme=Space Economy: avg daily return=1.46%, avg weekly return=-0.44%, avg volume ratio=0.76"
-2026-07-31,,,-0.0199780327582524,0.016115937734760846,-0.0552987858840875,0.7261543252428662,subtheme,AI Servers,group_summary,"subtheme=AI Servers: avg daily return=-2.00%, avg weekly return=1.61%, avg volume ratio=0.73"
-2026-07-31,,,0.0071506687890203,0.0060438845270225,-0.290859810908025,0.7534522872301795,subtheme,AI-RAN,group_summary,"subtheme=AI-RAN: avg daily return=0.72%, avg weekly return=0.60%, avg volume ratio=0.75"
-2026-07-31,,,-0.0370168169713008,-0.0078065142936599,-0.3111705008448128,0.97642906921499,subtheme,AdTech & AI Applications,group_summary,"subtheme=AdTech & AI Applications: avg daily return=-3.70%, avg weekly return=-0.78%, avg volume ratio=0.98"
-2026-07-31,,,0.0138516579331271,0.1029733375439332,0.0294917856509464,0.7158470602121291,subtheme,Cloud Software,group_summary,"subtheme=Cloud Software: avg daily return=1.39%, avg weekly return=10.30%, avg volume ratio=0.72"
-2026-07-31,,,0.0119821874507111,0.0593764495325066,-0.0608814338406306,0.9386470973838972,subtheme,Connectivity,group_summary,"subtheme=Connectivity: avg daily return=1.20%, avg weekly return=5.94%, avg volume ratio=0.94"
-2026-07-31,,,0.0291275469004688,0.0400207702025352,-0.0133032693941473,0.6291549657309391,subtheme,Cybersecurity,group_summary,"subtheme=Cybersecurity: avg daily return=2.91%, avg weekly return=4.00%, avg volume ratio=0.63"
-2026-07-31,,,0.0407591216940559,-0.0855447965299333,-0.2216856172622876,0.7676850901954057,subtheme,Data Center Construction,group_summary,"subtheme=Data Center Construction: avg daily return=4.08%, avg weekly return=-8.55%, avg volume ratio=0.77"
-2026-07-31,,,-0.0198945016446099,-0.0530786996850066,0.0128943256368492,0.6211572019700146,subtheme,Data Centers,group_summary,"subtheme=Data Centers: avg daily return=-1.99%, avg weekly return=-5.31%, avg volume ratio=0.62"
-2026-07-31,,,-0.0099077193910284,0.1010464731055729,0.1300069379906279,1.082400209781042,subtheme,Data Cloud,group_summary,"subtheme=Data Cloud: avg daily return=-0.99%, avg weekly return=10.10%, avg volume ratio=1.08"
-2026-07-31,,,0.0266000870086857,0.1594153607431283,0.2111338893180951,0.4663209016223193,subtheme,Developer Tools,group_summary,"subtheme=Developer Tools: avg daily return=2.66%, avg weekly return=15.94%, avg volume ratio=0.47"
-2026-07-31,,,-0.0100039585945653,0.0702078932207204,0.1390320955569053,0.880602682310402,subtheme,Edge Cloud & Security,group_summary,"subtheme=Edge Cloud & Security: avg daily return=-1.00%, avg weekly return=7.02%, avg volume ratio=0.88"
-2026-07-31,,,0.002655988061601,-0.0367778243609134,0.1173784768102537,0.3570103311665538,subtheme,Energy,group_summary,"subtheme=Energy: avg daily return=0.27%, avg weekly return=-3.68%, avg volume ratio=0.36"
-2026-07-31,,,0.0419450311197304,0.0442708545837498,-0.2355664825251134,0.8264665996660662,subtheme,Energy Storage,group_summary,"subtheme=Energy Storage: avg daily return=4.19%, avg weekly return=4.43%, avg volume ratio=0.83"
-2026-07-31,,,0.014210755314208848,-0.08912370654532475,-0.2034049574395106,0.6570756547200928,subtheme,Equipment,group_summary,"subtheme=Equipment: avg daily return=1.42%, avg weekly return=-8.91%, avg volume ratio=0.66"
-2026-07-31,,,0.0058639514236971,0.0056145958461568,-0.0867906765410903,0.6466901514170694,subtheme,Foundry,group_summary,"subtheme=Foundry: avg daily return=0.59%, avg weekly return=0.56%, avg volume ratio=0.65"
-2026-07-31,,,0.0276328511788439,-0.0309925162292465,0.0144220191166568,0.7082803736676331,subtheme,GPU,group_summary,"subtheme=GPU: avg daily return=2.76%, avg weekly return=-3.10%, avg volume ratio=0.71"
-2026-07-31,,,-0.0311977054942231,-0.10859503868603845,-0.28531467647519126,1.0835666842497462,subtheme,Memory,group_summary,"subtheme=Memory: avg daily return=-3.12%, avg weekly return=-10.86%, avg volume ratio=1.08"
-2026-07-31,,,0.0244473628851,-0.0441621226832995,-0.258903373285327,0.5056600073819225,subtheme,Memory Interface,group_summary,"subtheme=Memory Interface: avg daily return=2.44%, avg weekly return=-4.42%, avg volume ratio=0.51"
-2026-07-31,,,-0.006162819486340675,0.03721841567940633,-0.13884767440954904,0.9044115039299827,subtheme,NeoCloud,group_summary,"subtheme=NeoCloud: avg daily return=-0.62%, avg weekly return=3.72%, avg volume ratio=0.90"
-2026-07-31,,,0.0370901174800215,0.016520243144829933,-0.051168341432313004,0.7370418983673511,subtheme,Networking,group_summary,"subtheme=Networking: avg daily return=3.71%, avg weekly return=1.65%, avg volume ratio=0.74"
-2026-07-31,,,-0.0200682882930574,0.0154867422815045,-0.1930379630107161,0.9000192590696277,subtheme,Nuclear Fuel,group_summary,"subtheme=Nuclear Fuel: avg daily return=-2.01%, avg weekly return=1.55%, avg volume ratio=0.90"
-2026-07-31,,,0.04351021199322042,-0.038634948772589765,-0.2209963421982951,0.8116503902395739,subtheme,Optical,group_summary,"subtheme=Optical: avg daily return=4.35%, avg weekly return=-3.86%, avg volume ratio=0.81"
-2026-07-31,,,0.03722078848524516,0.0377409738689721,-0.1151326866104576,0.5578948627194357,subtheme,Optical Test & Metrology,group_summary,"subtheme=Optical Test & Metrology: avg daily return=3.72%, avg weekly return=3.77%, avg volume ratio=0.56"
-2026-07-31,,,0.047075289348446174,-0.0003101403146969564,-0.14877491186175906,1.1096564796686796,subtheme,Power,group_summary,"subtheme=Power: avg daily return=4.71%, avg weekly return=-0.03%, avg volume ratio=1.11"
-2026-07-31,,,0.018318264407697134,0.10271602540115798,-0.23421084914347157,0.6795204468917558,subtheme,Quantum Hardware,group_summary,"subtheme=Quantum Hardware: avg daily return=1.83%, avg weekly return=10.27%, avg volume ratio=0.68"
-2026-07-31,,,-0.01289166454093485,0.02895385263900535,-0.1945063592295037,0.6468579891753949,subtheme,SMR,group_summary,"subtheme=SMR: avg daily return=-1.29%, avg weekly return=2.90%, avg volume ratio=0.65"
-2026-07-31,,,0.0150840907781011,0.0026868738163512,-0.3506801891105058,0.4909859321783399,subtheme,Satellite Data,group_summary,"subtheme=Satellite Data: avg daily return=1.51%, avg weekly return=0.27%, avg volume ratio=0.49"
-2026-07-31,,,0.0141676365733074,-0.0115074145712443,-0.2823726014235003,1.035359759766829,subtheme,Space Infrastructure,group_summary,"subtheme=Space Infrastructure: avg daily return=1.42%, avg weekly return=-1.15%, avg volume ratio=1.04"
-2026-07-31,,,0.0181465071655466,0.0181345410653464,-0.052508214193323,0.9107238217511724,subtheme,Storage,group_summary,"subtheme=Storage: avg daily return=1.81%, avg weekly return=1.81%, avg volume ratio=0.91"
-2026-07-31,,,0.0112655389044018,0.1268475291976114,0.0520793416625935,0.6085957262316324,subtheme,Workflow Automation,group_summary,"subtheme=Workflow Automation: avg daily return=1.13%, avg weekly return=12.68%, avg volume ratio=0.61"
+2026-07-31,ANET,Arista,0.0585311323632555,0.0404620556576131,0.0864842400936003,0.8051957473725636,,,single_stock_big_up,ANET single-day gain >= 5%.
+2026-07-31,ANET,Arista,0.0585311323632555,0.0404620556576131,0.0864842400936003,0.8051957473725636,,,near_52w_high,ANET is within 5% of its 52-week high.
+2026-07-31,ANET,Arista,0.0585311323632555,0.0404620556576131,0.0864842400936003,0.8051957473725636,,,strong_trend,ANET is above 20/50/200-day moving averages.
+2026-07-31,VRT,Vertiv,0.0731648539448832,-0.1591644283324553,-0.2160266079716316,1.434358994590652,,,single_stock_big_up,VRT single-day gain >= 5%.
+2026-07-31,ETN,Eaton,0.0778489671398683,0.0320216673516826,0.0113967770725358,1.4147095228839346,,,single_stock_big_up,ETN single-day gain >= 5%.
+2026-07-31,ETN,Eaton,0.0778489671398683,0.0320216673516826,0.0113967770725358,1.4147095228839346,,,near_52w_high,ETN is within 5% of its 52-week high.
+2026-07-31,ETN,Eaton,0.0778489671398683,0.0320216673516826,0.0113967770725358,1.4147095228839346,,,strong_trend,ETN is above 20/50/200-day moving averages.
+2026-07-31,COHR,Coherent,0.0625150866331143,-0.0628917767780684,-0.2821646296917621,0.9083609201004834,,,single_stock_big_up,COHR single-day gain >= 5%.
+2026-07-31,DDOG,Datadog,0.0137026836060287,0.1028112677682591,0.0293405131794555,0.7302468598381866,,,near_52w_high,DDOG is within 5% of its 52-week high.
+2026-07-31,DDOG,Datadog,0.0137026836060287,0.1028112677682591,0.0293405131794555,0.7302468598381866,,,strong_trend,DDOG is above 20/50/200-day moving averages.
+2026-07-31,CLS,Celestica,-0.0524972629906569,0.0943395830323945,-0.07615731684305,0.987124208455802,,,single_stock_big_down,CLS single-day drop <= -5%.
+2026-07-31,APH,Amphenol,0.0108871865513382,0.0582301663474884,-0.0618975936973104,0.9632638755323478,,,strong_trend,APH is above 20/50/200-day moving averages.
+2026-07-31,NET,Cloudflare,-0.0128798624700682,0.0670989767210767,0.1357232471565783,0.9043636432895888,,,near_52w_high,NET is within 5% of its 52-week high.
+2026-07-31,NET,Cloudflare,-0.0128798624700682,0.0670989767210767,0.1357232471565783,0.9043636432895888,,,strong_trend,NET is above 20/50/200-day moving averages.
+2026-07-31,SNOW,Snowflake,-0.0112378598957569,0.0995672710754698,0.128488828993837,1.100423936597515,,,near_52w_high,SNOW is within 5% of its 52-week high.
+2026-07-31,SNOW,Snowflake,-0.0112378598957569,0.0995672710754698,0.128488828993837,1.100423936597515,,,strong_trend,SNOW is above 20/50/200-day moving averages.
+2026-07-31,,,0.01658766696819349,-0.013408638660514387,-0.14265532655488447,0.8199892613935486,theme,AI Infrastructure,group_summary,"theme=AI Infrastructure: avg daily return=1.66%, avg weekly return=-1.34%, avg volume ratio=0.82"
+2026-07-31,,,-0.019215613353722735,0.02040237061426563,-0.1971969517435612,0.7458758832235274,theme,Nuclear,group_summary,"theme=Nuclear: avg daily return=-1.92%, avg weekly return=2.04%, avg volume ratio=0.75"
+2026-07-31,,,0.014826321935995,0.09893410609168911,-0.2368296041002497,0.6913302645994167,theme,Quantum,group_summary,"theme=Quantum: avg daily return=1.48%, avg weekly return=9.89%, avg volume ratio=0.69"
+2026-07-31,,,0.0017885942908952418,0.08297578689413236,0.03249492691361465,0.7858592597649051,theme,Software,group_summary,"theme=Software: avg daily return=0.18%, avg weekly return=8.30%, avg volume ratio=0.79"
+2026-07-31,,,0.01297858955531645,-0.0060142210358073,-0.3177004111274403,0.7852869473113384,theme,Space Economy,group_summary,"theme=Space Economy: avg daily return=1.30%, avg weekly return=-0.60%, avg volume ratio=0.79"
+2026-07-31,,,-0.02400374513657515,0.011886937163518699,-0.0591845639662774,0.7797888719321278,subtheme,AI Servers,group_summary,"subtheme=AI Servers: avg daily return=-2.40%, avg weekly return=1.19%, avg volume ratio=0.78"
+2026-07-31,,,0.0038503681875237,0.0027472107123402,-0.2931835702671086,0.7707195048239834,subtheme,AI-RAN,group_summary,"subtheme=AI-RAN: avg daily return=0.39%, avg weekly return=0.27%, avg volume ratio=0.77"
+2026-07-31,,,-0.0445687974289278,-0.0155875700237013,-0.3165724922896643,1.0174055081143163,subtheme,AdTech & AI Applications,group_summary,"subtheme=AdTech & AI Applications: avg daily return=-4.46%, avg weekly return=-1.56%, avg volume ratio=1.02"
+2026-07-31,,,0.0137026836060287,0.1028112677682591,0.0293405131794555,0.7302468598381866,subtheme,Cloud Software,group_summary,"subtheme=Cloud Software: avg daily return=1.37%, avg weekly return=10.28%, avg volume ratio=0.73"
+2026-07-31,,,0.0108871865513382,0.0582301663474884,-0.0618975936973104,0.9632638755323478,subtheme,Connectivity,group_summary,"subtheme=Connectivity: avg daily return=1.09%, avg weekly return=5.82%, avg volume ratio=0.96"
+2026-07-31,,,0.0282523208237406,0.0391362799358412,-0.0141424099953777,0.6423784915263102,subtheme,Cybersecurity,group_summary,"subtheme=Cybersecurity: avg daily return=2.83%, avg weekly return=3.91%, avg volume ratio=0.64"
+2026-07-31,,,0.0427489941858265,-0.0837964099759152,-0.220197524246453,0.7892994809533271,subtheme,Data Center Construction,group_summary,"subtheme=Data Center Construction: avg daily return=4.27%, avg weekly return=-8.38%, avg volume ratio=0.79"
+2026-07-31,,,-0.0211688908269382,-0.0543099408765546,0.0115773025473968,0.6416652072267262,subtheme,Data Centers,group_summary,"subtheme=Data Centers: avg daily return=-2.12%, avg weekly return=-5.43%, avg volume ratio=0.64"
+2026-07-31,,,-0.0112378598957569,0.0995672710754698,0.128488828993837,1.100423936597515,subtheme,Data Cloud,group_summary,"subtheme=Data Cloud: avg daily return=-1.12%, avg weekly return=9.96%, avg volume ratio=1.10"
+2026-07-31,,,0.0263962114287736,0.1591851089810041,0.2108933666187884,0.4839637969738002,subtheme,Developer Tools,group_summary,"subtheme=Developer Tools: avg daily return=2.64%, avg weekly return=15.92%, avg volume ratio=0.48"
+2026-07-31,,,-0.0128798624700682,0.0670989767210767,0.1357232471565783,0.9043636432895888,subtheme,Edge Cloud & Security,group_summary,"subtheme=Edge Cloud & Security: avg daily return=-1.29%, avg weekly return=6.71%, avg volume ratio=0.90"
+2026-07-31,,,0.0032250952776953,-0.0362310997640574,0.1180127004740354,0.3739331935810559,subtheme,Energy,group_summary,"subtheme=Energy: avg daily return=0.32%, avg weekly return=-3.62%, avg volume ratio=0.37"
+2026-07-31,,,0.0415738273824033,0.0438988222476615,-0.2358388199039095,0.8411946218197263,subtheme,Energy Storage,group_summary,"subtheme=Energy Storage: avg daily return=4.16%, avg weekly return=4.39%, avg volume ratio=0.84"
+2026-07-31,,,0.011861579979702401,-0.09120212280021181,-0.20516838871843934,0.674669466065211,subtheme,Equipment,group_summary,"subtheme=Equipment: avg daily return=1.19%, avg weekly return=-9.12%, avg volume ratio=0.67"
+2026-07-31,,,0.0050829084460544,0.0048337464905465,-0.0874997741563253,0.6563554793450663,subtheme,Foundry,group_summary,"subtheme=Foundry: avg daily return=0.51%, avg weekly return=0.48%, avg volume ratio=0.66"
+2026-07-31,,,0.0279942929748624,-0.0306516943054557,0.0147788143632174,0.7318105647986185,subtheme,GPU,group_summary,"subtheme=GPU: avg daily return=2.80%, avg weekly return=-3.07%, avg volume ratio=0.73"
+2026-07-31,,,-0.038785484604212,-0.11550998455940165,-0.29066530951544034,1.095298961170358,subtheme,Memory,group_summary,"subtheme=Memory: avg daily return=-3.88%, avg weekly return=-11.55%, avg volume ratio=1.10"
+2026-07-31,,,0.0234427152399665,-0.0450994868733651,-0.2596301465758048,0.5291757230247619,subtheme,Memory Interface,group_summary,"subtheme=Memory Interface: avg daily return=2.34%, avg weekly return=-4.51%, avg volume ratio=0.53"
+2026-07-31,,,-0.011962273056597101,0.0312251071132543,-0.14386938551034337,0.9203766277166823,subtheme,NeoCloud,group_summary,"subtheme=NeoCloud: avg daily return=-1.20%, avg weekly return=3.12%, avg volume ratio=0.92"
+2026-07-31,,,0.0344528936620854,0.014010691115091034,-0.05302567619620541,0.7500334843550704,subtheme,Networking,group_summary,"subtheme=Networking: avg daily return=3.45%, avg weekly return=1.40%, avg volume ratio=0.75"
+2026-07-31,,,-0.0247651546463117,0.0106194587197858,-0.1969057762415856,0.9154169940995152,subtheme,Nuclear Fuel,group_summary,"subtheme=Nuclear Fuel: avg daily return=-2.48%, avg weekly return=1.06%, avg volume ratio=0.92"
+2026-07-31,,,0.038064341556123094,-0.043665777783135094,-0.2250551225774043,0.8347521950163962,subtheme,Optical,group_summary,"subtheme=Optical: avg daily return=3.81%, avg weekly return=-4.37%, avg volume ratio=0.83"
+2026-07-31,,,0.0357477739064213,0.03624454682041844,-0.11637337330719662,0.5744262925499207,subtheme,Optical Test & Metrology,group_summary,"subtheme=Optical Test & Metrology: avg daily return=3.57%, avg weekly return=3.62%, avg volume ratio=0.57"
+2026-07-31,,,0.045920327676823774,-0.0011574874696498524,-0.14953736018988972,1.1341417770464286,subtheme,Power,group_summary,"subtheme=Power: avg daily return=4.59%, avg weekly return=-0.12%, avg volume ratio=1.13"
+2026-07-31,,,0.014826321935995,0.09893410609168911,-0.2368296041002497,0.6913302645994167,subtheme,Quantum Hardware,group_summary,"subtheme=Quantum Hardware: avg daily return=1.48%, avg weekly return=9.89%, avg volume ratio=0.69"
+2026-07-31,,,-0.01644084270742825,0.02529382656150555,-0.19734253949454894,0.6611053277855335,subtheme,SMR,group_summary,"subtheme=SMR: avg daily return=-1.64%, avg weekly return=2.53%, avg volume ratio=0.66"
+2026-07-31,,,0.0153314235320607,0.0029311858966145,-0.3505219775313007,0.5068492768623069,subtheme,Satellite Data,group_summary,"subtheme=Satellite Data: avg daily return=1.53%, avg weekly return=0.29%, avg volume ratio=0.51"
+2026-07-31,,,0.0106257555785722,-0.0149596279682291,-0.2848788447235798,1.06372461776037,subtheme,Space Infrastructure,group_summary,"subtheme=Space Infrastructure: avg daily return=1.06%, avg weekly return=-1.50%, avg volume ratio=1.06"
+2026-07-31,,,0.0080312170231673,0.0080193698062267,-0.0619215493602209,0.9374779744837958,subtheme,Storage,group_summary,"subtheme=Storage: avg daily return=0.80%, avg weekly return=0.80%, avg volume ratio=0.94"
+2026-07-31,,,0.0128554639724767,0.1286191738009769,0.0537334347316853,0.622232582014619,subtheme,Workflow Automation,group_summary,"subtheme=Workflow Automation: avg daily return=1.29%, avg weekly return=12.86%, avg volume ratio=0.62"
