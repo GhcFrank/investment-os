@@ -19,6 +19,7 @@ Pygments==2.20.0
 PyYAML>=6.0,<7
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
+pytest>=8,<9
 pytz==2026.2
 requests==2.34.2
 rich==15.0.0

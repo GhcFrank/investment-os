@@ -1,5 +1,6 @@
 """
-Update daily VIX and CNN Fear & Greed market sentiment indicators.
+Update VIX and CNN sentiment indicators for manual use, plus the daily
+VIX-only production path.
 """
 
 from __future__ import annotations
@@ -8,6 +9,7 @@ import argparse
 import os
 import re
 import sys
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -68,6 +70,29 @@ CNN_DATED_ENDPOINT = (
     "https://production.dataviz.cnn.io/index/fearandgreed/graphdata/{date}"
 )
 CNN_ENDPOINT = "https://production.dataviz.cnn.io/index/fearandgreed/graphdata"
+
+
+@dataclass(frozen=True)
+class VIXMarketUpdateSummary:
+    status: str
+    available: bool
+    data_date: str
+    current_file: Path
+    history_file: Path
+    rows_written: int
+    warnings: tuple[str, ...] = ()
+
+    def format(self) -> str:
+        return "\n".join(
+            [
+                "VIX market update summary:",
+                f"- status: {self.status}",
+                f"- available: {self.available}",
+                f"- data date: {self.data_date or 'unavailable'}",
+                f"- rows written: {self.rows_written}",
+                f"- warnings: {len(self.warnings)}",
+            ]
+        )
 
 
 def now_utc_iso() -> str:
@@ -447,13 +472,16 @@ def current_snapshot(history: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
     return snapshot.reindex(columns=columns)
 
 
-def append_fetch_log(row: dict[str, object]) -> None:
-    existing = read_csv(SENTIMENT_FETCH_LOG_FILE, FETCH_LOG_COLUMNS)
+def append_fetch_log(
+    row: dict[str, object],
+    path: Path = SENTIMENT_FETCH_LOG_FILE,
+) -> None:
+    existing = read_csv(path, FETCH_LOG_COLUMNS)
     combined = pd.concat(
         [existing, pd.DataFrame([row], columns=FETCH_LOG_COLUMNS)],
         ignore_index=True,
     )
-    write_csv(combined, SENTIMENT_FETCH_LOG_FILE, FETCH_LOG_COLUMNS)
+    write_csv(combined, path, FETCH_LOG_COLUMNS)
 
 
 def _skipped_cnn_row() -> dict[str, str]:
@@ -486,6 +514,124 @@ def _build_outputs(
     cnn_history = upsert_history(existing_cnn, cnn_rows, CNN_COLUMNS)
 
     return vix_rows, cnn_rows, vix_history, cnn_history
+
+
+def run_vix_market_update(
+    *,
+    dry_run: bool = False,
+    lookback_days: int = 60,
+    current_file: Path | str = VIX_CURRENT_FILE,
+    history_file: Path | str = VIX_HISTORY_FILE,
+    fetch_log_file: Path | str = SENTIMENT_FETCH_LOG_FILE,
+    fetcher: Any | None = None,
+) -> VIXMarketUpdateSummary:
+    """Update only VIX for the daily pipeline; never request or write CNN."""
+
+    run_at = now_utc_iso()
+    output_current = Path(current_file)
+    output_history = Path(history_file)
+    output_fetch_log = Path(fetch_log_file)
+    active_fetcher = fetcher or fetch_vix
+    try:
+        vix_data = active_fetcher(lookback_days=lookback_days)
+    except Exception as error:
+        safe_error = f"{type(error).__name__}: VIX data request failed"
+        if not dry_run:
+            append_fetch_log(
+                {
+                    "run_at": run_at,
+                    "status": "failed",
+                    "vix_status": "failed",
+                    "cnn_status": "disabled",
+                    "rows_written": 0,
+                    "error_message": safe_error,
+                },
+                output_fetch_log,
+            )
+        return VIXMarketUpdateSummary(
+            status="DATA_UNAVAILABLE",
+            available=False,
+            data_date="",
+            current_file=output_current,
+            history_file=output_history,
+            rows_written=0,
+        )
+
+    if (
+        str(vix_data.get("status", "")).strip().lower() != "ok"
+        or numeric_value(vix_data.get("vix")) is None
+        or not str(vix_data.get("date", "")).strip()
+    ):
+        if not dry_run:
+            append_fetch_log(
+                {
+                    "run_at": run_at,
+                    "status": "failed",
+                    "vix_status": "failed",
+                    "cnn_status": "disabled",
+                    "rows_written": 0,
+                    "error_message": "VIX observation validation failed",
+                },
+                output_fetch_log,
+            )
+        return VIXMarketUpdateSummary(
+            status="DATA_UNAVAILABLE",
+            available=False,
+            data_date="",
+            current_file=output_current,
+            history_file=output_history,
+            rows_written=0,
+        )
+
+    existing_vix = read_csv(output_history, VIX_COLUMNS)
+    vix_rows = pd.DataFrame([vix_data], columns=VIX_COLUMNS)
+    vix_rows = add_change_columns(
+        vix_rows,
+        existing_vix,
+        "vix",
+        VIX_COLUMNS,
+    )
+    vix_history = upsert_history(existing_vix, vix_rows, VIX_COLUMNS)
+    missing_changes = tuple(
+        column
+        for column in ("change_1d", "change_5d", "change_20d")
+        if not str(vix_rows.iloc[-1].get(column, "")).strip()
+    )
+    warnings = (
+        ("insufficient VIX history: " + ", ".join(missing_changes),)
+        if missing_changes
+        else ()
+    )
+    status = "INSUFFICIENT_HISTORY" if warnings else "SUCCESS"
+
+    if not dry_run:
+        write_csv(vix_history, output_history, VIX_COLUMNS)
+        write_csv(
+            current_snapshot(vix_history, VIX_COLUMNS),
+            output_current,
+            VIX_COLUMNS,
+        )
+        append_fetch_log(
+            {
+                "run_at": run_at,
+                "status": "success",
+                "vix_status": vix_data["status"],
+                "cnn_status": "disabled",
+                "rows_written": len(vix_rows),
+                "error_message": "",
+            },
+            output_fetch_log,
+        )
+
+    return VIXMarketUpdateSummary(
+        status=status,
+        available=True,
+        data_date=str(vix_rows.iloc[-1]["date"]),
+        current_file=output_current,
+        history_file=output_history,
+        rows_written=0 if dry_run else len(vix_rows),
+        warnings=warnings,
+    )
 
 
 def update_sentiment_indicators(

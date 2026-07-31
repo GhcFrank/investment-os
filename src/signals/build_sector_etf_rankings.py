@@ -1179,7 +1179,7 @@ def format_sector_etf_ranking_email(
     )
     completeness = "INCOMPLETE" if incomplete else "Complete"
     missing_text = (
-        ", ".join(sorted(set(missing_tickers))) if missing_tickers else "None"
+        ", ".join(sorted(set(missing_tickers))) if missing_tickers else "N/A"
     )
     header_lines = [
         f"Ranking Date: {ranking_date}",

@@ -1,7 +1,7 @@
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pandas as pd
 import requests
@@ -204,6 +204,67 @@ class SentimentCsvTests(unittest.TestCase):
         self.assertEqual(changed.loc[0, "change_1d"], "9.00")
         self.assertEqual(changed.loc[0, "change_5d"], "13.00")
         self.assertEqual(changed.loc[0, "change_20d"], "28.00")
+
+    def test_daily_vix_only_update_never_calls_or_writes_cnn(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            history_file = root / "vix_history.csv"
+            current_file = root / "vix.csv"
+            log_file = root / "fetch_log.csv"
+            history = pd.DataFrame(
+                [
+                    sentiment.vix_row(
+                        date=f"2026-06-{index:02d}",
+                        value=10 + index,
+                        level="normal",
+                    )
+                    for index in range(1, 22)
+                ],
+                columns=sentiment.VIX_COLUMNS,
+            )
+            history.to_csv(history_file, index=False)
+            fetcher = MagicMock(
+                return_value=sentiment.vix_row(
+                    date="2026-06-22",
+                    value=40,
+                    level="stress",
+                )
+            )
+            with patch.object(
+                sentiment,
+                "fetch_cnn_fear_greed",
+            ) as cnn_fetch:
+                summary = sentiment.run_vix_market_update(
+                    current_file=current_file,
+                    history_file=history_file,
+                    fetch_log_file=log_file,
+                    fetcher=fetcher,
+                )
+
+            self.assertTrue(summary.available)
+            self.assertEqual(summary.status, "SUCCESS")
+            cnn_fetch.assert_not_called()
+            self.assertEqual(
+                pd.read_csv(current_file).iloc[-1]["change_20d"],
+                28.0,
+            )
+            log = pd.read_csv(log_file, dtype=str).iloc[-1]
+            self.assertEqual(log["cnn_status"], "disabled")
+            self.assertEqual(log["rows_written"], "1")
+
+    def test_daily_vix_failure_does_not_publish_stale_current_row(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            current_file = root / "vix.csv"
+            summary = sentiment.run_vix_market_update(
+                current_file=current_file,
+                history_file=root / "vix_history.csv",
+                fetch_log_file=root / "fetch_log.csv",
+                fetcher=MagicMock(side_effect=RuntimeError("network")),
+            )
+            self.assertFalse(summary.available)
+            self.assertEqual(summary.status, "DATA_UNAVAILABLE")
+            self.assertFalse(current_file.exists())
 
 
 class SentimentEmailSectionTests(unittest.TestCase):
