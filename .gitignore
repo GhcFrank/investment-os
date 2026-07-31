@@ -20,3 +20,5 @@ data/news/raw/*
 
 # Environment variables
 .env
+.env.*
+!.env.example

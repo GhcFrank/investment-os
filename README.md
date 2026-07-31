@@ -22,6 +22,127 @@ Run the daily pipeline:
 PYTHONPATH=src python -m pipelines.run_daily_pipeline
 ```
 
+The GitHub Actions daily job injects `VAST_API_KEY` from the repository secret
+of the same name. The key is never stored in source, workflow YAML, generated
+CSV files, or email content.
+
+## VIX market sentiment and CNN daily status
+
+The daily pipeline updates VIX from Yahoo Finance through a VIX-only production
+entrypoint, then writes the formal current signal to
+`data/signals/vix_market_sentiment.csv` before any email is rendered. VIX does
+not require a separate API key. Its unified-email section contains the VIX
+level, 1-, 5-, and 20-observation point changes, sentiment regime, conservative
+interpretation, source data date, data status, and an explicit stale flag.
+Changes are VIX index-point changes over the existing daily market observations,
+not percentages.
+
+The VIX signal uses `SUCCESS`, `SUCCESS_WITH_WARNINGS`,
+`INSUFFICIENT_HISTORY`, and `DATA_UNAVAILABLE`. Missing change history is shown
+as `Insufficient history`, never zero, `nan`, or `None`. A failed update does
+not reuse the prior row silently: the daily pipeline continues and the unified
+email displays `VIX market sentiment data unavailable`. VIX has no separate
+production email; its section is rendered before the ETF leadership and GPU
+sections in the one unified daily message.
+
+CNN Fear & Greed is temporarily disabled in the daily pipeline and GitHub
+Actions because its current endpoint is not reliable. Daily runs do not request
+CNN, update its current/history CSV files, render a CNN email section, or use
+`SENTIMENT_USER_AGENT`. The CNN fetch/parser, fixtures, tests, historical CSVs,
+and manual module entrypoint remain intact for future repair:
+
+```bash
+PYTHONPATH=src python -m market_data.update_sentiment_indicators --dry-run
+```
+
+Re-enabling CNN requires an explicit future pipeline change after the manual
+path is fixed and validated; it is not controlled by a hidden default-on flag.
+The unified email still omits the `Generated Files` section while all enabled
+daily outputs continue to be saved.
+
+## Vast.ai GPU cloud market snapshots
+
+The GPU cloud collector is read-only and calls only Vast.ai Search Offers. It
+does not create, rent, bid on, start, or destroy instances. `VAST_API_KEY` is
+loaded from the explicit process environment first, then from the repository
+root `.env` without overriding an existing value. This works independently of
+whether the current working directory is the repository root or `src/`.
+
+Each provider/pricing snapshot has one of these statuses:
+
+- `SUCCESS`: the request and schema were valid, at least one offer was usable,
+  the complete result was collected, and there were no warnings.
+- `SUCCESS_WITH_WARNINGS`: the request produced at least one usable, complete
+  offer set but had non-fatal record or GPU-model warnings.
+- `API_KEY_MISSING`: no key was configured; no HTTP request was sent.
+- `PROVIDER_ERROR`: the provider request failed, returned invalid JSON, or did
+  not yield a complete result after bounded retries.
+- `NO_MARKET_DATA`: the request and schema were valid and the complete filtered
+  response contained zero offers. This is the only real zero-inventory status.
+- `SCHEMA_ERROR`: the HTTP response arrived but its top-level structure was not
+  a reliable offers response, or none of its source offers could be normalized.
+
+The two generated layers have deliberately different grains:
+
+- Raw offer history in `data/market_data/gpu_cloud_market_history.csv` retains
+  every minute-level offer snapshot. Request outcomes, including failures, are
+  retained separately in `gpu_cloud_market_fetch_log.csv` for audit and
+  troubleshooting. Existing historical statuses are not rewritten.
+- Daily signals in `data/signals/gpu_cloud_market_signals.csv` select the
+  maximum eligible timestamp per date and pricing type. `SUCCESS` and
+  `SUCCESS_WITH_WARNINGS` are eligible; a legacy `PARTIAL` is eligible only
+  when `request_count > 0`, `offer_count > 0`, and `results_truncated=False`.
+  A validated `NO_MARKET_DATA` snapshot is eligible only as a real zero.
+
+On-demand and interruptible timestamps are selected independently and written
+to the signal output. `source_snapshot_timestamp_utc` uses the selected
+on-demand timestamp as the primary daily source, falling back to the selected
+interruptible timestamp only when no eligible on-demand snapshot exists. If
+interruptible collection fails while on-demand
+succeeds, on-demand metrics remain valid, interruptible metrics and discount
+remain empty, and the day is marked `PARTIAL_DAY`. `API_KEY_MISSING`,
+`PROVIDER_ERROR`, and `SCHEMA_ERROR` never become zero inventory and never
+contribute prices, counts, availability, or trend references. Seven- and
+30-calendar-day trends use only the selected daily on-demand snapshots, with
+the exact target date preferred and the configured plus/minus two-day
+tolerance used when that date is absent. Price trends use the on-demand median
+price per GPU-hour only. Offer-count trends are calculated independently per
+tracked GPU model; their reference denominator must be greater than zero.
+Missing references remain blank and are displayed as `Insufficient history`,
+not zero percent.
+
+The GPU update and signal build run near the start of the daily pipeline,
+before the remaining market and signal steps. A GPU warning does not stop the
+pipeline. A GPU API, provider, or schema failure also does not stop the other
+steps or the final email; the GPU section says that data is unavailable and
+never turns the failed request into zero offers or zero GPUs.
+
+The unified daily email reads
+`data/signals/gpu_cloud_market_signals.csv`, never the minute-level raw offer
+history. For every tracked model it shows the 7- and 30-calendar-day on-demand
+rental-price trends, visible GPU count, 7- and 30-calendar-day visible-offer
+trends, and the stored supply signal. Visible GPUs and offers cover only the
+filtered Vast.ai public marketplace and are not global capacity.
+
+The supply signal is a conservative Vast.ai marginal public marketplace
+indicator, not a measure of the whole GPU cloud market. It is written in the
+signal layer using these rules, in priority order:
+
+- `DATA_UNAVAILABLE`: the API or formal daily data is unavailable.
+- `INSUFFICIENT_HISTORY`: either 30-day price or 30-day offer trend is missing.
+- `OVERSUPPLY_WARNING`: 30-day price is at most -10%, 30-day offers are at
+  least +20%, and either 7-day price is negative or 7-day offers are positive.
+- `STABLE`: absolute 30-day price change is below 5% and absolute 30-day offer
+  change is below 10%.
+- `LOOSENING`: 30-day price is negative and 30-day offers are positive.
+- `TIGHTENING`: 30-day price is positive and 30-day offers are negative.
+- `MIXED`: every other available combination.
+
+`INSUFFICIENT_HISTORY` is the expected initial condition while natural-day
+history accumulates. The daily email no longer displays a `Generated Files`
+section in either plain text or HTML; all configured files are still generated
+and saved normally.
+
 ## Sector and industry ETF market and fund data
 
 The market-data layer tracks one Select Sector SPDR ETF for each of the 11
@@ -170,7 +291,7 @@ The sector ETF portion of the daily pipeline runs in this strict order:
 2. iShares SOXX/IGV fund history update
 3. Yahoo Finance price update for all 13 leadership ETFs
 4. 30/90/250 trading-day adjusted-close return update for all 13
-5. Daily 13-ETF leadership Top 3/Bottom 3 ranking and email
+5. Daily 13-ETF leadership Top 3/Bottom 3 ranking render
 ```
 
 After all metrics files are updated, the ranking builder reads the same exact
@@ -212,14 +333,16 @@ python -m src.signals.build_sector_etf_rankings --dry-run-email
 ```
 
 The daily pipeline uses the existing `GMAIL_USER`, `GMAIL_APP_PASSWORD`, and
-`EMAIL_TO` settings to send one ranking email per successful ranking date. The
-email contains the 30-, 90-, and 250-trading-day Top 3 and Bottom 3 tables, in
-that presentation order. Its header describes an ETF leadership universe
-rather than incorrectly calling all 13 entries primary sectors. Weekend,
-holiday, and retry runs use the last market-data date and do not resend after
-that ranking date has a successful log entry. Failed sends are recorded and
-may be retried; `--send-email --force-email` explicitly resends a successful
-date.
+`EMAIL_TO` settings to send one consolidated daily email after all data steps.
+The VIX market-sentiment section, 30-, 90-, and 250-trading-day Top 3 and
+Bottom 3 tables, and GPU supply section are rendered into that one message. The ranking step
+does not send a second message. Its header describes an ETF leadership universe
+rather than incorrectly calling all 13 entries primary sectors.
+
+Standalone `--send-email` and `--send-email --force-email` ranking runs retain
+their existing idempotent email-log behavior. The production ranking email log
+is not changed when the ranking builder is used only to render the unified
+daily email.
 
 Email status is stored at:
 

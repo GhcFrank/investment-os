@@ -6,56 +6,67 @@ run_daily_pipeline.py
 
 当前每日流程：
 
-1. 更新股票价格和成交量数据
+1. 更新 VIX 市场数据（daily 正式路径不运行 CNN）
+   -> src/market_data/update_sentiment_indicators.py
+   -> 输出 data/market_data/vix.csv 和 vix_history.csv
+
+2. 构建正式 VIX market sentiment signal
+   -> src/signals/build_vix_market_sentiment.py
+   -> 输出 data/signals/vix_market_sentiment.csv
+
+3. 更新 Vast.ai GPU 云市场原始报价历史（仅 Search Offers，只读）
+   -> src/market_data/update_gpu_cloud_market.py
+   -> 输出 data/market_data/gpu_cloud_market_history.csv
+   -> 输出 data/market_data/gpu_cloud_market_fetch_log.csv
+
+4. 构建 Vast.ai GPU 云市场价格、库存和可用性信号
+   -> src/signals/build_gpu_cloud_market_signals.py
+   -> 输出 data/signals/gpu_cloud_market_signals.csv
+
+5. 更新股票价格和成交量数据
    -> src/market_data/update_prices.py
    -> 输出 data/market_data/prices.csv
 
-2. 更新 11 只 GICS 一级板块 ETF 的 State Street 官方基金历史
+6. 更新 11 只 GICS 一级板块 ETF 的 State Street 官方基金历史
    -> src/market_data/update_sector_etf_fund_history.py
    -> 输出 data/market_data/sector_etf_fund_history/<configured-filename>.csv
 
-3. 更新 SOXX、IGV 的 iShares 官方基金历史
+7. 更新 SOXX、IGV 的 iShares 官方基金历史
    -> src/market_data/update_ishares_etf_fund_history.py
    -> 输出 data/market_data/sector_etf_fund_history/<configured-filename>.csv
 
-4. 更新 13 只 leadership ETF 市场价格
+8. 更新 13 只 leadership ETF 市场价格
    -> src/market_data/update_sector_etf_prices.py
    -> 输出 data/market_data/sector_etf_prices.csv
 
-5. 构建 13 只 leadership ETF 30/90/250 交易日复权价格涨幅
+9. 构建 13 只 leadership ETF 30/90/250 交易日复权价格涨幅
    -> src/signals/build_sector_etf_metrics.py
    -> 输出 data/signals/sector_etf_metrics/<configured-filename>.csv
 
-6. 构建 13 只 ETF leadership 每日排名并发送邮件
+10. 构建 13 只 ETF leadership 每日排名，内容并入统一 daily email
    -> src/signals/build_sector_etf_rankings.py
    -> 输出 data/signals/sector_etf_daily_rankings.csv
-   -> 更新 data/signals/sector_etf_ranking_email_log.csv
 
-7. 更新市场情绪指标
-   -> src/market_data/update_sentiment_indicators.py
-   -> 输出 data/market_data/vix.csv
-   -> 输出 data/market_data/cnn_fear_greed.csv
-
-8. 计算板块强度
+11. 计算板块强度
    -> src/signals/build_sector_strength.py
    -> 输出 data/signals/sector_strength.csv
    -> 更新 data/signals/sector_strength_history.csv
 
-9. 生成每日市场信号
+12. 生成每日市场信号
    -> src/signals/daily_market_monitor.py
    -> 输出 data/signals/daily_market_signals.csv
 
-10. 检查明天是否有财报
+13. 检查明天是否有财报
    -> src/events/check_earnings_calendar.py
    -> 如果命中，发送邮件提醒
    -> 更新 data/events/earnings_alert_history.csv
 
-11. 检查 SEC EDGAR 重要 filing
+14. 检查 SEC EDGAR 重要 filing
    -> src/events/check_sec_filings.py
    -> 如果发现新 filing，发送邮件提醒
    -> 更新 data/events/sec_filings.csv
 
-12. 更新 Polymarket earnings 预测数据
+15. 更新 Polymarket earnings 预测数据
    -> src/prediction_markets/update_polymarket_earnings_markets.py
    -> src/prediction_markets/match_polymarket_earnings.py
    -> src/prediction_markets/update_polymarket_predictions.py
@@ -71,6 +82,8 @@ run_daily_pipeline.py
 这样项目结构更清晰，后续加日报邮件、异常检查、日志记录也更方便。
 """
 
+from dataclasses import dataclass
+from html import escape
 from pathlib import Path
 import os
 import subprocess
@@ -88,7 +101,22 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 from utils.send_email import send_email
-from market_data.sentiment_summary import build_sentiment_email_section
+from market_data.gpu_cloud_summary import (
+    GPUCloudEmailSection,
+    build_gpu_cloud_email_section,
+    build_gpu_cloud_unavailable_email_section,
+)
+from market_data.gpu_cloud_status import (
+    API_KEY_MISSING,
+    PROVIDER_ERROR,
+    SCHEMA_ERROR,
+)
+from market_data.update_sentiment_indicators import run_vix_market_update
+from market_data.vix_sentiment_summary import (
+    VIXMarketSentimentEmailSection,
+    build_vix_market_sentiment_email_section,
+    build_vix_market_sentiment_unavailable_email_section,
+)
 from market_data.update_sector_etf_fund_history import (
     run_sector_etf_fund_history_update,
 )
@@ -96,10 +124,33 @@ from market_data.update_ishares_etf_fund_history import (
     run_ishares_etf_fund_history_update,
 )
 from market_data.update_sector_etf_prices import run_sector_etf_price_update
+from market_data.update_gpu_cloud_market import run_gpu_cloud_market_update
+from market_data.vast_ai_client import (
+    VastAIAuthenticationError,
+    VastAISchemaError,
+)
+from signals.build_gpu_cloud_market_signals import (
+    run_gpu_cloud_market_signals_update,
+)
 from signals.build_sector_etf_metrics import run_sector_etf_metrics_update
 from signals.build_sector_etf_rankings import (
     run_sector_etf_daily_ranking,
 )
+from signals.build_vix_market_sentiment import (
+    run_vix_market_sentiment_signals_update,
+)
+
+
+@dataclass(frozen=True)
+class GPUCloudPipelineResult:
+    available: bool
+    status: str
+
+
+@dataclass(frozen=True)
+class VIXPipelineResult:
+    available: bool
+    status: str
 
 
 def run_script(script_path: Path) -> None:
@@ -159,6 +210,137 @@ def run_sector_etf_price_step():
     return summary
 
 
+def run_gpu_cloud_market_step():
+    """Collect a read-only Vast.ai Search Offers snapshot in-process."""
+
+    print("=" * 80)
+    print("Running: Vast.ai GPU cloud market update (Search Offers only)")
+    print("=" * 80)
+    summary = run_gpu_cloud_market_update()
+    print(summary.format())
+    print("Completed: Vast.ai GPU cloud market update")
+    return summary
+
+
+def run_vix_market_step():
+    """Update only the VIX market observation; CNN remains manual-only."""
+
+    print("=" * 80)
+    print("Running: VIX market data update (CNN daily integration disabled)")
+    print("=" * 80)
+    summary = run_vix_market_update()
+    print(summary.format())
+    return summary
+
+
+def run_vix_market_signals_step():
+    """Build the formal VIX sentiment signal before email rendering."""
+
+    print("=" * 80)
+    print("Running: VIX market sentiment signal build")
+    print("=" * 80)
+    summary = run_vix_market_sentiment_signals_update()
+    print(summary.format())
+    return summary
+
+
+def run_vix_steps_best_effort() -> VIXPipelineResult:
+    """Keep the daily pipeline alive when VIX is unavailable."""
+
+    print("[VIX] Updating market data...")
+    try:
+        update_summary = run_vix_market_step()
+    except Exception:
+        print("[VIX] WARNING: data unavailable; continuing daily pipeline.")
+        return VIXPipelineResult(False, "DATA_UNAVAILABLE")
+    if not update_summary.available:
+        print("[VIX] WARNING: data unavailable; continuing daily pipeline.")
+        return VIXPipelineResult(False, "DATA_UNAVAILABLE")
+    if update_summary.warnings:
+        print(
+            "[VIX] WARNING: update completed with "
+            f"{len(update_summary.warnings)} warning(s)."
+        )
+
+    print("[VIX] Building market sentiment signal...")
+    try:
+        signal_summary = run_vix_market_signals_step()
+    except Exception:
+        print("[VIX] WARNING: signal unavailable; continuing daily pipeline.")
+        return VIXPipelineResult(False, "DATA_UNAVAILABLE")
+    print("[VIX] Market sentiment update completed.")
+    return VIXPipelineResult(True, signal_summary.data_status)
+
+
+def run_gpu_cloud_market_signals_step():
+    """Build the durable single-provider GPU cloud market signals."""
+
+    print("=" * 80)
+    print("Running: GPU cloud market price, inventory, and availability signals")
+    print("Availability scope: Vast.ai only; not yet cross-provider")
+    print("=" * 80)
+    summary = run_gpu_cloud_market_signals_update()
+    print(summary.format())
+    print("Completed: GPU cloud market signals")
+    return summary
+
+
+def _safe_gpu_failure_status(error: Exception) -> str:
+    if isinstance(error, VastAIAuthenticationError):
+        return API_KEY_MISSING
+    if isinstance(error, (VastAISchemaError, ValueError)):
+        return SCHEMA_ERROR
+    return PROVIDER_ERROR
+
+
+def run_gpu_cloud_steps_best_effort() -> GPUCloudPipelineResult:
+    """Run collection then signals without blocking the rest of the day."""
+
+    print("[GPU CLOUD] Updating Vast.ai marketplace snapshot...")
+    try:
+        market_summary = run_gpu_cloud_market_step()
+    except Exception as error:
+        status = _safe_gpu_failure_status(error)
+        print(
+            f"[GPU CLOUD] WARNING: update unavailable ({status}); "
+            "continuing daily pipeline."
+        )
+        return GPUCloudPipelineResult(available=False, status=status)
+
+    warnings = getattr(market_summary, "warnings", ())
+    warnings = warnings if isinstance(warnings, (tuple, list)) else ()
+    pricing_types_failed = getattr(
+        market_summary, "pricing_types_failed", 0
+    )
+    pricing_types_failed = (
+        pricing_types_failed
+        if isinstance(pricing_types_failed, int)
+        else 0
+    )
+    if warnings or pricing_types_failed:
+        print(
+            "[GPU CLOUD] WARNING: snapshot completed with "
+            f"{len(warnings)} warning(s) and "
+            f"{pricing_types_failed} failed pricing type(s)."
+        )
+
+    print("[GPU CLOUD] Building daily GPU supply signals...")
+    try:
+        run_gpu_cloud_market_signals_step()
+    except Exception:
+        print(
+            "[GPU CLOUD] WARNING: signal data unavailable "
+            f"({SCHEMA_ERROR}); continuing daily pipeline."
+        )
+        return GPUCloudPipelineResult(
+            available=False,
+            status=SCHEMA_ERROR,
+        )
+
+    print("[GPU CLOUD] GPU market update completed.")
+    return GPUCloudPipelineResult(available=True, status="SUCCESS")
+
+
 def run_sector_etf_fund_history_step():
     """
     Update State Street NAV, shares, and total-net-assets history in-process.
@@ -216,21 +398,72 @@ def run_sector_etf_metrics_step():
 
 def run_sector_etf_rankings_step():
     """
-    Build the latest same-date rankings and send the idempotent email.
+    Build the latest same-date rankings for the unified daily email.
     """
 
     print("=" * 80)
     print("Running: Leadership ranking universe: 13 ETFs")
     print("=" * 80)
-    summary = run_sector_etf_daily_ranking(send_email_message=True)
+    summary = run_sector_etf_daily_ranking(send_email_message=False)
     print(summary.format())
-    if summary.email_status == "error":
-        raise RuntimeError(
-            "Sector ETF rankings were saved, but the ranking email failed: "
-            f"{summary.email_error}"
-        )
     print("Completed: Leadership ranking universe: 13 ETFs")
     return summary
+
+
+def _html_body_fragment(document: str) -> str:
+    """Extract an existing email's body so it can be safely consolidated."""
+
+    lower = document.lower()
+    start = lower.find("<body")
+    if start == -1:
+        return document
+    start = document.find(">", start)
+    end = lower.rfind("</body>")
+    if start == -1 or end == -1 or end <= start:
+        return document
+    return document[start + 1 : end]
+
+
+def build_daily_pipeline_email(
+    *,
+    run_time: str,
+    vix_section: VIXMarketSentimentEmailSection,
+    gpu_section: GPUCloudEmailSection,
+    ranking_email: object | None = None,
+) -> tuple[str, str]:
+    """Build the one plain/HTML daily email after every data step."""
+
+    plain_sections = [
+        "Daily pipeline completed successfully.",
+        f"Run time: {run_time}",
+    ]
+    html_sections = [
+        "<h1>Daily pipeline completed successfully</h1>",
+        f"<p>Run time: {escape(run_time)}</p>",
+    ]
+    plain_sections.append(vix_section.plain_text)
+    html_sections.append(vix_section.html)
+    if ranking_email is not None:
+        ranking_plain = str(getattr(ranking_email, "plain_text", "")).strip()
+        ranking_html = str(getattr(ranking_email, "html", "")).strip()
+        if ranking_plain:
+            plain_sections.append(ranking_plain)
+        if ranking_html:
+            html_sections.append(_html_body_fragment(ranking_html))
+    plain_sections.append(gpu_section.plain_text)
+    html_sections.append(gpu_section.html)
+
+    plain_body = "\n\n".join(plain_sections)
+    html_body = (
+        "<!doctype html><html><head><meta charset=\"utf-8\">"
+        "<style>body{font-family:Arial,sans-serif;color:#222}"
+        "table{border-collapse:collapse;margin-bottom:18px}"
+        "th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}"
+        "th{background:#f3f4f6}</style></head><body>"
+        + "".join(html_sections)
+        + "</body></html>"
+    )
+    return plain_body, html_body
 
 
 def main() -> None:
@@ -241,6 +474,17 @@ def main() -> None:
     print("\nDaily pipeline started.")
     print(f"Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Project root: {BASE_DIR}\n")
+
+    # VIX-only data and its formal signal run before all other daily sections.
+    # CNN remains available only through its manual module entrypoint.
+    vix_result = run_vix_steps_best_effort()
+
+    # This provider integration is deliberately read-only. It only searches
+    # public offers and never creates, rents, starts, bids on, or destroys an
+    # instance. Signals immediately follow collection so request failures are
+    # not confused with zero inventory. GPU failures degrade only its email
+    # section and never block the remaining daily market steps.
+    gpu_result = run_gpu_cloud_steps_best_effort()
 
     ordinary_prices_script = (
         BASE_DIR / "src" / "market_data" / "update_prices.py"
@@ -257,10 +501,9 @@ def main() -> None:
     run_ishares_etf_fund_history_step()
     run_sector_etf_price_step()
     run_sector_etf_metrics_step()
-    run_sector_etf_rankings_step()
+    ranking_summary = run_sector_etf_rankings_step()
 
     remaining_scripts = [
-        BASE_DIR / "src" / "market_data" / "update_sentiment_indicators.py",
         BASE_DIR / "src" / "signals" / "build_sector_strength.py",
         BASE_DIR / "src" / "signals" / "daily_market_monitor.py",
         BASE_DIR / "src" / "events" / "check_earnings_calendar.py",
@@ -282,44 +525,42 @@ def main() -> None:
     print("\nDaily pipeline completed successfully.")
     print(f"End time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
-    sentiment_section = build_sentiment_email_section()
+    if vix_result.available:
+        try:
+            vix_section = build_vix_market_sentiment_email_section()
+        except Exception:
+            vix_section = (
+                build_vix_market_sentiment_unavailable_email_section()
+            )
+    else:
+        vix_section = build_vix_market_sentiment_unavailable_email_section(
+            vix_result.status
+        )
+    if gpu_result.available:
+        try:
+            gpu_section = build_gpu_cloud_email_section()
+        except Exception:
+            gpu_section = build_gpu_cloud_unavailable_email_section(
+                SCHEMA_ERROR
+            )
+    else:
+        gpu_section = build_gpu_cloud_unavailable_email_section(
+            gpu_result.status
+        )
+    run_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    plain_body, html_body = build_daily_pipeline_email(
+        run_time=run_time,
+        vix_section=vix_section,
+        gpu_section=gpu_section,
+        ranking_email=ranking_summary.email,
+    )
 
     # 发送完成通知邮件。
     # 这里复用 src/utils/send_email.py 里的 send_email 函数。
     send_email(
         subject="Investment OS Daily Pipeline Completed",
-        body=(
-            "Daily pipeline completed successfully.\n\n"
-            f"Run time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
-            f"{sentiment_section}\n\n"
-            "Generated files:\n"
-            "- data/market_data/prices.csv\n"
-            "- data/market_data/prices_history.csv\n"
-            "- data/market_data/sector_etf_prices.csv\n"
-            "- data/market_data/sector_etf_fund_history/"
-            "<configured-filename>.csv\n"
-            "- data/signals/sector_etf_metrics/"
-            "<configured-filename>.csv\n"
-            "- data/signals/sector_etf_daily_rankings.csv\n"
-            "- data/signals/sector_etf_ranking_email_log.csv\n"
-            "- data/market_data/vix.csv\n"
-            "- data/market_data/vix_history.csv\n"
-            "- data/market_data/cnn_fear_greed.csv\n"
-            "- data/market_data/cnn_fear_greed_history.csv\n"
-            "- data/market_data/sentiment_fetch_log.csv\n"
-            "- data/signals/sector_strength.csv\n"
-            "- data/signals/sector_strength_history.csv\n"
-            "- data/signals/daily_market_signals.csv\n"
-            "- data/events/earnings_alert_history.csv (when an alert is sent)\n"
-            "- data/events/sec_company_map.csv\n"
-            "- data/events/sec_filings.csv\n"
-            "- data/events/sec_alert_history.csv (when an alert is sent)\n"
-            "- data/events/sec_initialized.flag\n"
-            "- data/prediction_markets/polymarket_earnings_markets.csv\n"
-            "- data/prediction_markets/polymarket_earnings_watchlist.csv\n"
-            "- data/prediction_markets/polymarket_predictions.csv\n"
-            "- data/prediction_markets/polymarket_predictions_history.csv\n"
-        ),
+        body=plain_body,
+        html_body=html_body,
     )
 
 
