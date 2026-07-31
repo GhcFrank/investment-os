@@ -31,7 +31,7 @@ jobs:
 
       - name: Run Daily Pipeline
         run: |
-          PYTHONPATH=src python src/pipelines/run_daily_pipeline.py
+          PYTHONPATH=src python -m pipelines.run_daily_pipeline
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
@@ -47,6 +47,13 @@ jobs:
 
           git add data/market_data/prices.csv
           git add data/market_data/prices_history.csv
+          git add data/market_data/sector_etf_prices.csv
+          for file in data/market_data/sector_etf_fund_history/*.csv
+          do
+            if [ -f "$file" ]; then
+              git add "$file"
+            fi
+          done
           git add data/market_data/vix.csv
           git add data/market_data/vix_history.csv
           git add data/market_data/cnn_fear_greed.csv
@@ -55,6 +62,20 @@ jobs:
           git add data/signals/sector_strength.csv
           git add data/signals/sector_strength_history.csv
           git add data/signals/daily_market_signals.csv
+          for file in data/signals/sector_etf_metrics/*.csv
+          do
+            if [ -f "$file" ]; then
+              git add "$file"
+            fi
+          done
+          for file in \
+            data/signals/sector_etf_daily_rankings.csv \
+            data/signals/sector_etf_ranking_email_log.csv
+          do
+            if [ -f "$file" ]; then
+              git add "$file"
+            fi
+          done
           git add data/events/earnings_calendar.csv
           git add data/events/earnings_alert_history.csv
           git add data/events/ir_events.csv

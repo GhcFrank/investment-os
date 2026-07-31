@@ -10,31 +10,52 @@ run_daily_pipeline.py
    -> src/market_data/update_prices.py
    -> 输出 data/market_data/prices.csv
 
-2. 更新市场情绪指标
+2. 更新 11 只 GICS 一级板块 ETF 的 State Street 官方基金历史
+   -> src/market_data/update_sector_etf_fund_history.py
+   -> 输出 data/market_data/sector_etf_fund_history/<configured-filename>.csv
+
+3. 更新 SOXX、IGV 的 iShares 官方基金历史
+   -> src/market_data/update_ishares_etf_fund_history.py
+   -> 输出 data/market_data/sector_etf_fund_history/<configured-filename>.csv
+
+4. 更新 13 只 leadership ETF 市场价格
+   -> src/market_data/update_sector_etf_prices.py
+   -> 输出 data/market_data/sector_etf_prices.csv
+
+5. 构建 13 只 leadership ETF 30/90/250 交易日复权价格涨幅
+   -> src/signals/build_sector_etf_metrics.py
+   -> 输出 data/signals/sector_etf_metrics/<configured-filename>.csv
+
+6. 构建 13 只 ETF leadership 每日排名并发送邮件
+   -> src/signals/build_sector_etf_rankings.py
+   -> 输出 data/signals/sector_etf_daily_rankings.csv
+   -> 更新 data/signals/sector_etf_ranking_email_log.csv
+
+7. 更新市场情绪指标
    -> src/market_data/update_sentiment_indicators.py
    -> 输出 data/market_data/vix.csv
    -> 输出 data/market_data/cnn_fear_greed.csv
 
-3. 计算板块强度
+8. 计算板块强度
    -> src/signals/build_sector_strength.py
    -> 输出 data/signals/sector_strength.csv
    -> 更新 data/signals/sector_strength_history.csv
 
-4. 生成每日市场信号
+9. 生成每日市场信号
    -> src/signals/daily_market_monitor.py
    -> 输出 data/signals/daily_market_signals.csv
 
-5. 检查明天是否有财报
+10. 检查明天是否有财报
    -> src/events/check_earnings_calendar.py
    -> 如果命中，发送邮件提醒
    -> 更新 data/events/earnings_alert_history.csv
 
-6. 检查 SEC EDGAR 重要 filing
+11. 检查 SEC EDGAR 重要 filing
    -> src/events/check_sec_filings.py
    -> 如果发现新 filing，发送邮件提醒
    -> 更新 data/events/sec_filings.csv
 
-7. 更新 Polymarket earnings 预测数据
+12. 更新 Polymarket earnings 预测数据
    -> src/prediction_markets/update_polymarket_earnings_markets.py
    -> src/prediction_markets/match_polymarket_earnings.py
    -> src/prediction_markets/update_polymarket_predictions.py
@@ -45,7 +66,7 @@ run_daily_pipeline.py
 以前 GitHub Actions 需要分别运行多个脚本。
 有了这个总控文件后，GitHub Actions 只需要运行：
 
-    python src/pipelines/run_daily_pipeline.py
+    PYTHONPATH=src python -m pipelines.run_daily_pipeline
 
 这样项目结构更清晰，后续加日报邮件、异常检查、日志记录也更方便。
 """
@@ -68,6 +89,17 @@ if str(SRC_DIR) not in sys.path:
 
 from utils.send_email import send_email
 from market_data.sentiment_summary import build_sentiment_email_section
+from market_data.update_sector_etf_fund_history import (
+    run_sector_etf_fund_history_update,
+)
+from market_data.update_ishares_etf_fund_history import (
+    run_ishares_etf_fund_history_update,
+)
+from market_data.update_sector_etf_prices import run_sector_etf_price_update
+from signals.build_sector_etf_metrics import run_sector_etf_metrics_update
+from signals.build_sector_etf_rankings import (
+    run_sector_etf_daily_ranking,
+)
 
 
 def run_script(script_path: Path) -> None:
@@ -113,6 +145,94 @@ def run_script(script_path: Path) -> None:
         )
 
 
+def run_sector_etf_price_step():
+    """
+    Update Yahoo sector ETF market prices in-process.
+    """
+
+    print("=" * 80)
+    print("Running: Yahoo ETF price update: 13 leadership ETFs")
+    print("=" * 80)
+    summary = run_sector_etf_price_update()
+    print(summary.format())
+    print("Completed: Yahoo ETF price update: 13 leadership ETFs")
+    return summary
+
+
+def run_sector_etf_fund_history_step():
+    """
+    Update State Street NAV, shares, and total-net-assets history in-process.
+    """
+
+    print("=" * 80)
+    print("Running: State Street ETF fund update: 11 primary-sector ETFs")
+    print("=" * 80)
+    summary = run_sector_etf_fund_history_update()
+    print(summary.format())
+    print("Completed: State Street ETF fund update: 11 primary-sector ETFs")
+    return summary
+
+
+def run_ishares_etf_fund_history_step():
+    """Update official SOXX and IGV NAV, shares, and AUM history."""
+
+    print("=" * 80)
+    print("Running: iShares ETF fund update: 2 industry ETFs")
+    print("=" * 80)
+    summary = run_ishares_etf_fund_history_update()
+    print(summary.format())
+    if summary.failed:
+        print(
+            "WARNING: iShares fund data was incomplete; Yahoo price, "
+            "metrics, and leadership ranking will continue because they use "
+            "Yahoo adjusted close."
+        )
+    print("Completed: iShares ETF fund update: 2 industry ETFs")
+    return summary
+
+
+def run_sector_etf_metrics_step():
+    """
+    Rebuild local trading-day adjusted-close returns in-process.
+    """
+
+    print("=" * 80)
+    print("Running: ETF metrics update: 13 leadership ETFs")
+    print("ETF return horizons: 30/90/250 trading days")
+    print("=" * 80)
+    summary = run_sector_etf_metrics_update()
+    print(summary.format())
+    if (
+        summary.failed
+        or summary.succeeded != summary.configured_etfs
+    ):
+        raise RuntimeError(
+            "Sector ETF metrics were incomplete; rankings and email are "
+            "blocked"
+        )
+    print("Completed: ETF metrics update: 13 leadership ETFs")
+    return summary
+
+
+def run_sector_etf_rankings_step():
+    """
+    Build the latest same-date rankings and send the idempotent email.
+    """
+
+    print("=" * 80)
+    print("Running: Leadership ranking universe: 13 ETFs")
+    print("=" * 80)
+    summary = run_sector_etf_daily_ranking(send_email_message=True)
+    print(summary.format())
+    if summary.email_status == "error":
+        raise RuntimeError(
+            "Sector ETF rankings were saved, but the ranking email failed: "
+            f"{summary.email_error}"
+        )
+    print("Completed: Leadership ranking universe: 13 ETFs")
+    return summary
+
+
 def main() -> None:
     """
     每日 pipeline 主入口。
@@ -122,8 +242,24 @@ def main() -> None:
     print(f"Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Project root: {BASE_DIR}\n")
 
-    scripts = [
-        BASE_DIR / "src" / "market_data" / "update_prices.py",
+    ordinary_prices_script = (
+        BASE_DIR / "src" / "market_data" / "update_prices.py"
+    )
+    if not ordinary_prices_script.exists():
+        raise FileNotFoundError(
+            f"Cannot find script: {ordinary_prices_script}"
+        )
+    run_script(ordinary_prices_script)
+
+    # Sector ETF collection is deliberately separate from the existing AI
+    # theme/subtheme strength data and runs before downstream signal steps.
+    run_sector_etf_fund_history_step()
+    run_ishares_etf_fund_history_step()
+    run_sector_etf_price_step()
+    run_sector_etf_metrics_step()
+    run_sector_etf_rankings_step()
+
+    remaining_scripts = [
         BASE_DIR / "src" / "market_data" / "update_sentiment_indicators.py",
         BASE_DIR / "src" / "signals" / "build_sector_strength.py",
         BASE_DIR / "src" / "signals" / "daily_market_monitor.py",
@@ -135,7 +271,7 @@ def main() -> None:
         BASE_DIR / "src" / "prediction_markets" / "check_polymarket_prediction_signals.py",
     ]
 
-    for script in scripts:
+    for script in remaining_scripts:
         if not script.exists():
             raise FileNotFoundError(
                 f"Cannot find script: {script}"
@@ -159,6 +295,13 @@ def main() -> None:
             "Generated files:\n"
             "- data/market_data/prices.csv\n"
             "- data/market_data/prices_history.csv\n"
+            "- data/market_data/sector_etf_prices.csv\n"
+            "- data/market_data/sector_etf_fund_history/"
+            "<configured-filename>.csv\n"
+            "- data/signals/sector_etf_metrics/"
+            "<configured-filename>.csv\n"
+            "- data/signals/sector_etf_daily_rankings.csv\n"
+            "- data/signals/sector_etf_ranking_email_log.csv\n"
             "- data/market_data/vix.csv\n"
             "- data/market_data/vix_history.csv\n"
             "- data/market_data/cnn_fear_greed.csv\n"

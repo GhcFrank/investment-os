@@ -9,12 +9,14 @@ mdurl==0.1.2
 multitasking==0.0.13
 numpy==2.4.6
 openai
+openpyxl>=3.1,<4
 pandas==3.0.3
 peewee==4.0.6
 platformdirs==4.10.0
 protobuf==7.35.0
 pycparser==3.0
 Pygments==2.20.0
+PyYAML>=6.0,<7
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
 pytz==2026.2

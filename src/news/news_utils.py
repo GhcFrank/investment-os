@@ -18,6 +18,8 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 import pandas as pd
 import requests
 
+from utils.csv_utils import atomic_write_csv
+
 
 NEWS_USER_AGENT = os.getenv(
     "NEWS_USER_AGENT",
@@ -342,24 +344,6 @@ def read_csv_safe(path: Path, columns: list[str]) -> pd.DataFrame:
             df[column] = ""
 
     return df.reindex(columns=columns)
-
-
-def atomic_write_csv(df: pd.DataFrame, path: Path, columns: list[str]) -> None:
-    """
-    Write a CSV with a stable schema via same-directory atomic replace.
-    """
-
-    path.parent.mkdir(parents=True, exist_ok=True)
-    output = df.copy()
-
-    for column in columns:
-        if column not in output.columns:
-            output[column] = ""
-
-    output = output.reindex(columns=columns)
-    temp_path = path.with_name(f".{path.name}.tmp")
-    output.to_csv(temp_path, index=False, encoding="utf-8")
-    temp_path.replace(path)
 
 
 def join_values(values: list[object] | set[object]) -> str:

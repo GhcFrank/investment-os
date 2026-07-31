@@ -11,6 +11,7 @@ send_email.py
 from pathlib import Path
 import os
 import smtplib
+from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 from dotenv import load_dotenv
@@ -23,16 +24,9 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 ENV_FILE = BASE_DIR / ".env"
 
 
-def send_email(subject: str, body: str) -> None:
-    """
-    发送一封纯文本邮件。
+def _configured_email_settings() -> tuple[str, str, list[str]]:
+    """Load and validate the existing Gmail environment configuration."""
 
-    参数：
-        subject: 邮件标题
-        body: 邮件正文
-    """
-
-    # 读取 .env 文件
     load_dotenv(ENV_FILE)
 
     gmail_user = os.getenv("GMAIL_USER")
@@ -48,8 +42,43 @@ def send_email(subject: str, body: str) -> None:
     if not email_to:
         raise ValueError("Missing EMAIL_TO in .env")
 
-    # 创建邮件正文
-    msg = MIMEText(body, "plain", "utf-8")
+    recipients = [
+        recipient.strip()
+        for recipient in email_to.replace(";", ",").split(",")
+        if recipient.strip()
+    ]
+    if not recipients:
+        raise ValueError("EMAIL_TO in .env contains no recipients")
+    return gmail_user, gmail_app_password, recipients
+
+
+def send_email(
+    subject: str,
+    body: str,
+    *,
+    html_body: str | None = None,
+) -> int:
+    """
+    使用现有 Gmail 配置发送纯文本或 multipart/alternative 邮件。
+
+    参数：
+        subject: 邮件标题
+        body: 邮件正文
+        html_body: 可选 HTML 正文；提供时保留纯文本 fallback
+
+    返回：
+        实际配置的收件人数。
+    """
+
+    gmail_user, gmail_app_password, recipients = (
+        _configured_email_settings()
+    )
+    if html_body is None:
+        msg = MIMEText(body, "plain", "utf-8")
+    else:
+        msg = MIMEMultipart("alternative")
+        msg.attach(MIMEText(body, "plain", "utf-8"))
+        msg.attach(MIMEText(html_body, "html", "utf-8"))
 
     # 邮件标题
     msg["Subject"] = subject
@@ -58,7 +87,7 @@ def send_email(subject: str, body: str) -> None:
     msg["From"] = gmail_user
 
     # 收件人
-    msg["To"] = email_to
+    msg["To"] = ", ".join(recipients)
 
     # 使用 Gmail SMTP SSL 端口
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as server:
@@ -68,9 +97,10 @@ def send_email(subject: str, body: str) -> None:
         # 发送邮件
         server.sendmail(
             gmail_user,
-            [email_to],
+            recipients,
             msg.as_string(),
         )
+    return len(recipients)
 
 
 if __name__ == "__main__":

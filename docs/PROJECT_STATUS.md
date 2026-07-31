@@ -7,6 +7,10 @@ Current structure has been grouped by domain:
 - Earnings and IR event checks are under `src/events/`.
 - Polymarket prediction market workflows are under `src/prediction_markets/`.
 - Daily orchestration starts from `src/pipelines/run_daily_pipeline.py`.
+- GICS sector ETF Yahoo OHLCV prices and State Street official NAV, shares, and
+  total-net-assets histories are collected separately using the validated
+  mapping and safe per-ETF `fund_history_filename` values in
+  `config/sector_etfs.yaml`. The obsolete Yahoo AUM snapshot has been removed.
 
 Data files follow the same domain split under `data/`.
 
