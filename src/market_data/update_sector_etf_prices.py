@@ -19,16 +19,16 @@ from typing import Any
 import pandas as pd
 import yfinance as yf
 
-from src.market_data.sector_etf_config import (
+from market_data.sector_etf_config import (
     BASE_DIR,
     DEFAULT_CONFIG_FILE,
     SectorETF,
     SectorETFConfig,
     load_sector_etf_config,
 )
-from src.utils.csv_utils import atomic_write_csv
-from src.utils.date_utils import MARKET_TIMEZONE
-from src.utils.retry_utils import retry_call, short_error
+from utils.csv_utils import atomic_write_csv
+from utils.date_utils import MARKET_TIMEZONE
+from utils.retry_utils import retry_call, short_error
 
 
 LOGGER = logging.getLogger(__name__)

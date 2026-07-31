@@ -19,7 +19,7 @@ Personal market research automation project.
 Run the daily pipeline:
 
 ```bash
-PYTHONPATH=src python src/pipelines/run_daily_pipeline.py
+PYTHONPATH=src python -m pipelines.run_daily_pipeline
 ```
 
 ## Sector and industry ETF market and fund data

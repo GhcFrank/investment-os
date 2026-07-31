@@ -21,13 +21,13 @@ import pandas as pd
 import requests
 from bs4 import BeautifulSoup
 
-from src.market_data.sector_etf_config import (
+from market_data.sector_etf_config import (
     DEFAULT_CONFIG_FILE,
     SectorETF,
     SectorETFConfig,
     load_sector_etf_config,
 )
-from src.market_data.update_sector_etf_fund_history import (
+from market_data.update_sector_etf_fund_history import (
     DEFAULT_OUTPUT_DIR,
     FUND_HISTORY_COLUMNS,
     FundHistoryUpdateResult,
@@ -39,7 +39,7 @@ from src.market_data.update_sector_etf_fund_history import (
     validate_state_street_fund_history,
     write_fund_history_atomic,
 )
-from src.utils.retry_utils import retry_call, short_error
+from utils.retry_utils import retry_call, short_error
 
 
 LOGGER = logging.getLogger(__name__)

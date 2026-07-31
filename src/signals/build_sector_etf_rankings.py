@@ -20,13 +20,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-from src.market_data.sector_etf_config import (
+from market_data.sector_etf_config import (
     BASE_DIR,
     DEFAULT_CONFIG_FILE,
     SectorETFConfig,
     load_sector_etf_config,
 )
-from src.signals.build_sector_etf_metrics import (
+from signals.build_sector_etf_metrics import (
     DEFAULT_OUTPUT_DIR as DEFAULT_METRICS_DIR,
     METRICS_COLUMNS,
     METRICS_FLOAT_FORMAT,
@@ -34,9 +34,9 @@ from src.signals.build_sector_etf_metrics import (
     resolve_sector_etf_metrics_path,
     validate_sector_etf_metrics,
 )
-from src.utils.csv_utils import atomic_write_csv
-from src.utils.retry_utils import short_error
-from src.utils.send_email import send_email
+from utils.csv_utils import atomic_write_csv
+from utils.retry_utils import short_error
+from utils.send_email import send_email
 
 
 LOGGER = logging.getLogger(__name__)

@@ -31,7 +31,7 @@ jobs:
 
       - name: Run Daily Pipeline
         run: |
-          PYTHONPATH=src python src/pipelines/run_daily_pipeline.py
+          PYTHONPATH=src python -m pipelines.run_daily_pipeline
         env:
           GMAIL_USER: ${{ secrets.GMAIL_USER }}
           GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}

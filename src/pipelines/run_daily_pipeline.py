@@ -66,7 +66,7 @@ run_daily_pipeline.py
 以前 GitHub Actions 需要分别运行多个脚本。
 有了这个总控文件后，GitHub Actions 只需要运行：
 
-    python src/pipelines/run_daily_pipeline.py
+    PYTHONPATH=src python -m pipelines.run_daily_pipeline
 
 这样项目结构更清晰，后续加日报邮件、异常检查、日志记录也更方便。
 """
