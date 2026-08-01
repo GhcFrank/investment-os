@@ -45712,6 +45712,7 @@ term_id,name,slug,count,updated_at
 69094,inter-GPU communication,inter-gpu-communication,1,2026-06-16T01:56:54Z
 69095,peer-to-peer GPU writes,peer-to-peer-gpu-writes,1,2026-06-16T01:56:54Z
 69096,SyncMon,syncmon,1,2026-06-16T01:56:54Z
+69097,pre-silicon security,pre-silicon-security,2,2026-08-01T05:33:58Z
 69109,18A,18a,2,2026-06-25T21:16:36Z
 69114,MLPerf Training,mlperf-training,1,2026-06-25T21:16:36Z
 69115,Pictorus,pictorus,1,2026-06-25T21:16:36Z
@@ -45982,6 +45983,58 @@ term_id,name,slug,count,updated_at
 69542,Gemini,gemini,1,2026-07-25T05:21:25Z
 69543,Standard Motor Products,standard-motor-products,1,2026-07-25T05:21:25Z
 69544,BC Hydro,bc-hydro,1,2026-07-25T05:21:25Z
+69546,Shape Metrology,shape-metrology,1,2026-08-01T05:33:58Z
+69547,compute clusters,compute-clusters,1,2026-08-01T05:33:58Z
 69548,Zhongji Innolight,zhongji-innolight,1,2026-07-25T05:21:25Z
 69549,Connected Vehicle Security Act,connected-vehicle-security-act,1,2026-07-25T05:21:25Z
 69550,Mark Tehranipoor,mark-tehranipoor,1,2026-07-25T05:21:25Z
+69551,power side-channel leakage,power-side-channel-leakage,1,2026-08-01T05:33:58Z
+69552,PSCL,pscl,1,2026-08-01T05:33:58Z
+69553,cryptographic software,cryptographic-software,1,2026-08-01T05:33:58Z
+69554,IFT,ift,1,2026-08-01T05:33:58Z
+69555,macro-cell-level analysis,macro-cell-level-analysis,1,2026-08-01T05:33:58Z
+69556,CRYSTALS-Kyber-512,crystals-kyber-512,1,2026-08-01T05:33:58Z
+69557,ICCAD 2026,iccad-2026,1,2026-08-01T05:33:58Z
+69558,NMIMS Hyderabad,nmims-hyderabad,1,2026-08-01T05:33:58Z
+69559,Indian Institute of Technology Roorkee,indian-institute-of-technology-roorkee,1,2026-08-01T05:33:58Z
+69560,Birla Institute of Technology and Science Pilani,birla-institute-of-technology-and-science-pilani,1,2026-08-01T05:33:58Z
+69561,HDL code generation,hdl-code-generation,1,2026-08-01T05:33:58Z
+69562,open-source LLMs,open-source-llms,1,2026-08-01T05:33:58Z
+69563,Icarus Verilog,icarus-verilog,1,2026-08-01T05:33:58Z
+69564,formal equivalence verification,formal-equivalence-verification,1,2026-08-01T05:33:58Z
+69565,AST repair,ast-repair,1,2026-08-01T05:33:58Z
+69566,waveform analysis,waveform-analysis,1,2026-08-01T05:33:58Z
+69567,IEEE Design & Test,ieee-design-test,1,2026-08-01T05:33:58Z
+69568,Toyota Research Institute of North America,toyota-research-institute-of-north-america,1,2026-08-01T05:33:58Z
+69569,deployable electronics,deployable-electronics,1,2026-08-01T05:33:58Z
+69570,3D semiconductor devices,3d-semiconductor-devices,1,2026-08-01T05:33:58Z
+69571,deployable 3D architectures,deployable-3d-architectures,1,2026-08-01T05:33:58Z
+69572,auxetic unit cells,auxetic-unit-cells,1,2026-08-01T05:33:58Z
+69573,Gaussian curvature,gaussian-curvature,1,2026-08-01T05:33:58Z
+69574,paraboloidal reflectors,paraboloidal-reflectors,1,2026-08-01T05:33:58Z
+69575,p-type semiconductors,p-type-semiconductors,1,2026-08-01T05:33:58Z
+69576,BEOL CMOS,beol-cmos,1,2026-08-01T05:33:58Z
+69577,oxide n-channel transistors,oxide-n-channel-transistors,1,2026-08-01T05:33:58Z
+69578,p-channel transistors,p-channel-transistors,1,2026-08-01T05:33:58Z
+69579,low-temperature growth,low-temperature-growth,1,2026-08-01T05:33:58Z
+69580,van der Waals contacts,van-der-waals-contacts,1,2026-08-01T05:33:58Z
+69581,p-doping,p-doping,1,2026-08-01T05:33:58Z
+69582,IM Electronics,im-electronics,1,2026-08-01T05:33:58Z
+69583,NAD Memory,nad-memory,1,2026-08-01T05:33:58Z
+69584,cell-level data transfer,cell-level-data-transfer,1,2026-08-01T05:33:58Z
+69585,memory bottlenecks,memory-bottlenecks,1,2026-08-01T05:33:58Z
+69586,Pittsburgh Supercomputing Center,pittsburgh-supercomputing-center,1,2026-08-01T05:33:58Z
+69588,Claros Technologies,claros-technologies,1,2026-08-01T05:33:58Z
+69589,BlueQubit,bluequbit,1,2026-08-01T05:33:58Z
+69590,DAC news,dac-news,1,2026-08-01T05:33:58Z
+69591,CyberGym,cybergym,1,2026-08-01T05:33:58Z
+69592,V-Silicon,v-silicon,1,2026-08-01T05:33:58Z
+69595,ASPEED Technology,aspeed-technology,1,2026-08-01T05:33:58Z
+69596,Shanghai Aishengna Electronic Technology Group,shanghai-aishengna-electronic-technology-group,1,2026-08-01T05:33:58Z
+69598,Kepler,kepler,1,2026-08-01T05:33:58Z
+69599,OBSIDIA Semiconductors,obsidia-semiconductors,1,2026-08-01T05:33:58Z
+69600,Lens Technology,lens-technology,1,2026-08-01T05:33:58Z
+69601,Zeiss SMT,zeiss-smt,1,2026-08-01T05:33:58Z
+69602,TSRI,tsri,1,2026-08-01T05:33:58Z
+69603,Freedom Factory,freedom-factory,1,2026-08-01T05:33:58Z
+69604,Lava,lava,1,2026-08-01T05:33:58Z
