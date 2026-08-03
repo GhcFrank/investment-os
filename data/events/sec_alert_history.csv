@@ -126,3 +126,5 @@ sent_at,accession_number,ticker,company,form,filing_date,filing_index_url
 2026-07-31 10:38:18,0001193125-26-327127,IONQ,IonQ,8-K,2026-07-31,https://www.sec.gov/Archives/edgar/data/1824920/000119312526327127/0001193125-26-327127-index.html
 2026-07-31 15:01:53,0001551182-26-000030,ETN,Eaton,10-Q,2026-07-31,https://www.sec.gov/Archives/edgar/data/1551182/000155118226000030/0001551182-26-000030-index.html
 2026-07-31 22:35:30,0001104659-26-089194,APH,Amphenol,10-Q,2026-07-31,https://www.sec.gov/Archives/edgar/data/820313/000110465926089194/0001104659-26-089194-index.html
+2026-08-03 22:35:37,0001907982-26-000119,QBTS,D-Wave Quantum,8-K,2026-08-03,https://www.sec.gov/Archives/edgar/data/1907982/000190798226000119/0001907982-26-000119-index.html
+2026-08-03 22:35:37,0000874238-26-000100,STRL,Sterling Infrastructure,8-K,2026-08-03,https://www.sec.gov/Archives/edgar/data/874238/000087423826000100/0000874238-26-000100-index.html
