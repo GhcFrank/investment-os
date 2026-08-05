@@ -1,6 +1,4 @@
 ticker,company,market_id,question,matched_by,match_score,enabled
 DDOG,Datadog,3074267,Will Datadog (DDOG) beat quarterly earnings?,ticker,100,False
-IONQ,IonQ,3074431,Will IonQ (IONQ) beat quarterly earnings?,ticker,100,False
-SNDK,Sandisk,3074359,Will SanDisk (SNDK) beat quarterly earnings?,ticker,100,False
 NET,Cloudflare,3074287,Will Cloudflare (NET) beat quarterly earnings?,ticker,100,False
 APP,AppLovin,3074407,Will AppLovin (APP) beat quarterly earnings?,ticker,100,False
