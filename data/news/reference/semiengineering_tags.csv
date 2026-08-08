@@ -45775,6 +45775,7 @@ term_id,name,slug,count,updated_at
 69186,golden reference,golden-reference,1,2026-06-29T14:57:35Z
 69187,golden specification,golden-specification,1,2026-06-29T14:57:35Z
 69249,Reed Semiconductor,reed-semiconductor,2,2026-07-17T20:34:26Z
+69271,chip design automation,chip-design-automation,2,2026-08-08T03:39:44Z
 69325,Point72 Turion,point72-turion,1,2026-07-17T20:34:26Z
 69326,T. Rowe Price Investment Management,t-rowe-price-investment-management,1,2026-07-17T20:34:26Z
 69327,Allegis Capital,allegis-capital,1,2026-07-17T20:34:26Z
@@ -46038,3 +46039,100 @@ term_id,name,slug,count,updated_at
 69602,TSRI,tsri,1,2026-08-01T05:33:58Z
 69603,Freedom Factory,freedom-factory,1,2026-08-01T05:33:58Z
 69604,Lava,lava,1,2026-08-01T05:33:58Z
+69605,Granite,granite,1,2026-08-08T03:39:44Z
+69606,RTL processors,rtl-processors,1,2026-08-08T03:39:44Z
+69607,hardware-software leakage contracts,hardware-software-leakage-contracts,1,2026-08-08T03:39:44Z
+69608,ISA contracts,isa-contracts,1,2026-08-08T03:39:44Z
+69609,nonleakage,nonleakage,1,2026-08-08T03:39:44Z
+69610,cryptographic constant-time,cryptographic-constant-time,1,2026-08-08T03:39:44Z
+69611,Rocq,rocq,1,2026-08-08T03:39:44Z
+69612,many-core processors,many-core-processors,1,2026-08-08T03:39:44Z
+69613,ARM M4F,arm-m4f,1,2026-08-08T03:39:44Z
+69614,event-based computing,event-based-computing,1,2026-08-08T03:39:44Z
+69615,INT8 workloads,int8-workloads,1,2026-08-08T03:39:44Z
+69616,Gbit Ethernet,gbit-ethernet,1,2026-08-08T03:39:44Z
+69618,BITS Pilani,bits-pilani,1,2026-08-08T03:39:44Z
+69619,organic electrochemical transistor,organic-electrochemical-transistor,1,2026-08-08T03:39:44Z
+69620,Cyber Resilience Ac,cyber-resilience-ac,1,2026-08-08T03:39:44Z
+69621,vulnerability handling,vulnerability-handling,1,2026-08-08T03:39:44Z
+69622,SBOM management,sbom-management,1,2026-08-08T03:39:44Z
+69623,EUCC certification,eucc-certification,1,2026-08-08T03:39:44Z
+69624,AI factories,ai-factories,1,2026-08-08T03:39:44Z
+69625,scale-out networking,scale-out-networking,1,2026-08-08T03:39:44Z
+69626,chiplet disaggregation,chiplet-disaggregation,1,2026-08-08T03:39:44Z
+69627,HSM Root of Trust,hsm-root-of-trust,1,2026-08-08T03:39:44Z
+69628,Rambus CryptoManager,rambus-cryptomanager,1,2026-08-08T03:39:44Z
+69629,RT-648 Root of Trust,rt-648-root-of-trust,1,2026-08-08T03:39:44Z
+69630,QNX OS virtualization,qnx-os-virtualization,1,2026-08-08T03:39:44Z
+69631,GaN for robotics,gan-for-robotics,1,2026-08-08T03:39:44Z
+69632,humaninoid robot,humaninoid-robot,1,2026-08-08T03:39:44Z
+69634,probabilistic inference,probabilistic-inference,1,2026-08-08T03:39:44Z
+69636,Istituto Nazionale di Ricerca Metrologica,istituto-nazionale-di-ricerca-metrologica,1,2026-08-08T03:39:44Z
+69637,security by materials design,security-by-materials-design,1,2026-08-08T03:39:44Z
+69638,magneto ionics,magneto-ionics,1,2026-08-08T03:39:44Z
+69639,Nottingham Trent University,nottingham-trent-university,1,2026-08-08T03:39:44Z
+69640,hybrid digital-analogue computing,hybrid-digital-analogue-computing,1,2026-08-08T03:39:44Z
+69641,analogue in-memory computing,analogue-in-memory-computing,1,2026-08-08T03:39:44Z
+69642,TOPS/W,tops-w,1,2026-08-08T03:39:44Z
+69643,system-level benchmarking,system-level-benchmarking,1,2026-08-08T03:39:44Z
+69644,DiffPower,diffpower,1,2026-08-08T03:39:44Z
+69645,switching power analysis,switching-power-analysis,1,2026-08-08T03:39:44Z
+69646,differentiable EDA,differentiable-eda,1,2026-08-08T03:39:44Z
+69647,PDK-agnostic bytecode,pdk-agnostic-bytecode,1,2026-08-08T03:39:44Z
+69648,reverse-mode automatic differentiation,reverse-mode-automatic-differentiation,1,2026-08-08T03:39:44Z
+69649,toggle-rate correlation,toggle-rate-correlation,1,2026-08-08T03:39:44Z
+69650,cell sizing,cell-sizing,1,2026-08-08T03:39:44Z
+69651,power virus generation,power-virus-generation,1,2026-08-08T03:39:44Z
+69652,power gradients,power-gradients,1,2026-08-08T03:39:44Z
+69653,Astrolight,astrolight,1,2026-08-08T03:39:44Z
+69654,lunar networks,lunar-networks,1,2026-08-08T03:39:44Z
+69655,MEMS optical switch,mems-optical-switch,1,2026-08-08T03:39:44Z
+69656,BEOL post-processing,beol-post-processing,1,2026-08-08T03:39:44Z
+69657,zero-change foundry process,zero-change-foundry-process,1,2026-08-08T03:39:44Z
+69658,AI/ML clusters,ai-ml-clusters,1,2026-08-08T03:39:44Z
+69659,low-loss switching,low-loss-switching,1,2026-08-08T03:39:44Z
+69660,extinction ratio,extinction-ratio,1,2026-08-08T03:39:44Z
+69661,static power consumption,static-power-consumption,1,2026-08-08T03:39:44Z
+69662,RIKEN Center for Computational Science,riken-center-for-computational-science,1,2026-08-08T03:39:44Z
+69663,PIMID,pimid,1,2026-08-08T03:39:44Z
+69664,full-system simulation,full-system-simulation,1,2026-08-08T03:39:44Z
+69665,host-device co-simulation,host-device-co-simulation,1,2026-08-08T03:39:44Z
+69666,design specifications,design-specifications,1,2026-08-08T03:39:44Z
+69667,attack profiles,attack-profiles,1,2026-08-08T03:39:44Z
+69668,rad tolerant,rad-tolerant,1,2026-08-08T03:39:44Z
+69669,dot product,dot-product,1,2026-08-08T03:39:44Z
+69670,Mythos,mythos,1,2026-08-08T03:39:44Z
+69671,Agentic AI security,agentic-ai-security,1,2026-08-08T03:39:44Z
+69672,Palomino Laboratories,palomino-laboratories,1,2026-08-08T03:39:44Z
+69673,Vega Links,vega-links,1,2026-08-08T03:39:44Z
+69674,Wallaroo.ai,wallaroo-ai,1,2026-08-08T03:39:44Z
+69676,OptQC,optqc,1,2026-08-08T03:39:44Z
+69677,3mdeb,3mdeb,1,2026-08-08T03:39:44Z
+69678,AI Security Institute,ai-security-institute,1,2026-08-08T03:39:44Z
+69679,FMS conference news,fms-conference-news,1,2026-08-08T03:39:44Z
+69680,polysilicon ban,polysilicon-ban,1,2026-08-08T03:39:44Z
+69681,UNC,unc,1,2026-08-08T03:39:44Z
+69682,Florida Semiconductor Institute,florida-semiconductor-institute,1,2026-08-08T03:39:44Z
+69683,doped semiconductors,doped-semiconductors,1,2026-08-08T03:39:44Z
+69684,ultrafast optical switching,ultrafast-optical-switching,1,2026-08-08T03:39:44Z
+69685,femtosecond laser pulses,femtosecond-laser-pulses,1,2026-08-08T03:39:44Z
+69686,time-varying metamaterials,time-varying-metamaterials,1,2026-08-08T03:39:44Z
+69687,epsilon-near-zero materials,epsilon-near-zero-materials,1,2026-08-08T03:39:44Z
+69688,transparent conductive oxides,transparent-conductive-oxides,1,2026-08-08T03:39:44Z
+69689,pump-probe spectroscopy,pump-probe-spectroscopy,1,2026-08-08T03:39:44Z
+69690,plasma frequency,plasma-frequency,1,2026-08-08T03:39:44Z
+69691,non-parabolic conduction band,non-parabolic-conduction-band,1,2026-08-08T03:39:44Z
+69694,ultrafast X-ray diffraction,ultrafast-x-ray-diffraction,1,2026-08-08T03:39:44Z
+69695,thermal transport,thermal-transport,1,2026-08-08T03:39:44Z
+69696,anisotropic thermal transport,anisotropic-thermal-transport,1,2026-08-08T03:39:44Z
+69697,thermal boundary conductance,thermal-boundary-conductance,1,2026-08-08T03:39:44Z
+69698,wrinkle defects,wrinkle-defects,1,2026-08-08T03:39:44Z
+69699,lattice strain,lattice-strain,1,2026-08-08T03:39:44Z
+69700,thermal metrology,thermal-metrology,1,2026-08-08T03:39:44Z
+69701,die bonding,die-bonding,1,2026-08-08T03:39:44Z
+69702,bond front velocity,bond-front-velocity,1,2026-08-08T03:39:44Z
+69703,lubrication-mediated bonding,lubrication-mediated-bonding,1,2026-08-08T03:39:44Z
+69704,lubrication-elasticity model,lubrication-elasticity-model,1,2026-08-08T03:39:44Z
+69705,adhesion forces,adhesion-forces,1,2026-08-08T03:39:44Z
+69706,viscous dissipation,viscous-dissipation,1,2026-08-08T03:39:44Z
+69707,fluid mechanics,fluid-mechanics,1,2026-08-08T03:39:44Z
