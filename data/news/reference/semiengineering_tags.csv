@@ -45776,6 +45776,7 @@ term_id,name,slug,count,updated_at
 69187,golden specification,golden-specification,1,2026-06-29T14:57:35Z
 69249,Reed Semiconductor,reed-semiconductor,2,2026-07-17T20:34:26Z
 69271,chip design automation,chip-design-automation,2,2026-08-08T03:39:44Z
+69308,domain grounding,domain-grounding,2,2026-08-15T02:58:16Z
 69325,Point72 Turion,point72-turion,1,2026-07-17T20:34:26Z
 69326,T. Rowe Price Investment Management,t-rowe-price-investment-management,1,2026-07-17T20:34:26Z
 69327,Allegis Capital,allegis-capital,1,2026-07-17T20:34:26Z
@@ -46122,6 +46123,8 @@ term_id,name,slug,count,updated_at
 69689,pump-probe spectroscopy,pump-probe-spectroscopy,1,2026-08-08T03:39:44Z
 69690,plasma frequency,plasma-frequency,1,2026-08-08T03:39:44Z
 69691,non-parabolic conduction band,non-parabolic-conduction-band,1,2026-08-08T03:39:44Z
+69692,mperial College London,mperial-college-london,1,2026-08-15T02:58:16Z
+69693,INRiM,inrim,1,2026-08-15T02:58:16Z
 69694,ultrafast X-ray diffraction,ultrafast-x-ray-diffraction,1,2026-08-08T03:39:44Z
 69695,thermal transport,thermal-transport,1,2026-08-08T03:39:44Z
 69696,anisotropic thermal transport,anisotropic-thermal-transport,1,2026-08-08T03:39:44Z
@@ -46136,3 +46139,79 @@ term_id,name,slug,count,updated_at
 69705,adhesion forces,adhesion-forces,1,2026-08-08T03:39:44Z
 69706,viscous dissipation,viscous-dissipation,1,2026-08-08T03:39:44Z
 69707,fluid mechanics,fluid-mechanics,1,2026-08-08T03:39:44Z
+69708,optical fiber connectors,optical-fiber-connectors,1,2026-08-15T02:58:16Z
+69709,femtosecond laser slicing,femtosecond-laser-slicing,1,2026-08-15T02:58:16Z
+69710,wafer slicing,wafer-slicing,1,2026-08-15T02:58:16Z
+69711,self-focusing,self-focusing,1,2026-08-15T02:58:16Z
+69712,Marburger formula,marburger-formula,1,2026-08-15T02:58:16Z
+69713,ray optics simulation,ray-optics-simulation,1,2026-08-15T02:58:16Z
+69714,Kerr self-focusing,kerr-self-focusing,1,2026-08-15T02:58:16Z
+69715,FAPlace,faplace,1,2026-08-15T02:58:16Z
+69716,interposer footprint,interposer-footprint,1,2026-08-15T02:58:16Z
+69717,aspect ratio optimization,aspect-ratio-optimization,1,2026-08-15T02:58:16Z
+69718,multi-physics optimization,multi-physics-optimization,1,2026-08-15T02:58:16Z
+69719,thermal optimization,thermal-optimization,1,2026-08-15T02:58:16Z
+69720,Great Lakes Symposium on VLSI,great-lakes-symposium-on-vlsi,1,2026-08-15T02:58:16Z
+69721,optical fault isolation,optical-fault-isolation,1,2026-08-15T02:58:16Z
+69722,SLT FA,slt-fa,1,2026-08-15T02:58:16Z
+69723,through interposer vias,through-interposer-vias,1,2026-08-15T02:58:16Z
+69724,TIVs,tivs,1,2026-08-15T02:58:16Z
+69725,photon emission,photon-emission,1,2026-08-15T02:58:16Z
+69726,DRAM stacking,dram-stacking,1,2026-08-15T02:58:16Z
+69727,BCD devices,bcd-devices,1,2026-08-15T02:58:16Z
+69728,silicon chromium,silicon-chromium,1,2026-08-15T02:58:16Z
+69729,AI deployment,ai-deployment,1,2026-08-15T02:58:16Z
+69730,computer integrated manufacturing,computer-integrated-manufacturing,1,2026-08-15T02:58:16Z
+69731,chip-on-panel,chip-on-panel,1,2026-08-15T02:58:16Z
+69732,ISIG,isig,1,2026-08-15T02:58:16Z
+69736,linear optics,linear-optics,2,2026-08-15T02:58:16Z
+69737,112G PHY,112g-phy,1,2026-08-15T02:58:16Z
+69738,data center connectivity,data-center-connectivity,1,2026-08-15T02:58:16Z
+69739,3D components,3d-components,1,2026-08-15T02:58:16Z
+69740,DDR5 DIMM chipsets,ddr5-dimm-chipsets,1,2026-08-15T02:58:16Z
+69741,Registering Clock Driver,registering-clock-driver,1,2026-08-15T02:58:16Z
+69742,RCD,rcd,1,2026-08-15T02:58:16Z
+69743,SPD Hub,spd-hub,1,2026-08-15T02:58:16Z
+69744,optical circuit switching,optical-circuit-switching,1,2026-08-15T02:58:16Z
+69745,OCS,ocs,1,2026-08-15T02:58:16Z
+69746,wave division multiplexing,wave-division-multiplexing,1,2026-08-15T02:58:16Z
+69747,Omnitron,omnitron,1,2026-08-15T02:58:16Z
+69749,defect prediction,defect-prediction,1,2026-08-15T02:58:16Z
+69750,hotspot detection,hotspot-detection,1,2026-08-15T02:58:16Z
+69751,layout-to-image prediction,layout-to-image-prediction,1,2026-08-15T02:58:16Z
+69752,physics-based modeling,physics-based-modeling,1,2026-08-15T02:58:16Z
+69753,hybrid physics-ML frameworks,hybrid-physics-ml-frameworks,1,2026-08-15T02:58:16Z
+69754,uncertainty-aware screening,uncertainty-aware-screening,1,2026-08-15T02:58:16Z
+69755,2D CFETs,2d-cfets,1,2026-08-15T02:58:16Z
+69756,A2 node,a2-node,1,2026-08-15T02:58:16Z
+69757,angstrom-era scaling,angstrom-era-scaling,1,2026-08-15T02:58:16Z
+69758,CPP,cpp,1,2026-08-15T02:58:16Z
+69759,quantum transport simulation,quantum-transport-simulation,1,2026-08-15T02:58:16Z
+69760,circuit-level benchmarking,circuit-level-benchmarking,1,2026-08-15T02:58:16Z
+69761,layout-induced parasitics,layout-induced-parasitics,1,2026-08-15T02:58:16Z
+69763,VLM,vlm,1,2026-08-15T02:58:16Z
+69764,prefill,prefill,1,2026-08-15T02:58:16Z
+69765,one megawatt rack,one-megawatt-rack,1,2026-08-15T02:58:16Z
+69766,design-rule violations,design-rule-violations,1,2026-08-15T02:58:16Z
+69767,DRV fixing,drv-fixing,1,2026-08-15T02:58:16Z
+69768,sub-2nm,sub-2nm,1,2026-08-15T02:58:16Z
+69769,VLSI layout,vlsi-layout,1,2026-08-15T02:58:16Z
+69770,self-supervised learning,self-supervised-learning,1,2026-08-15T02:58:16Z
+69771,layout generation,layout-generation,1,2026-08-15T02:58:16Z
+69772,signoff DRC,signoff-drc,1,2026-08-15T02:58:16Z
+69774,Riot Platforms,riot-platforms,1,2026-08-15T02:58:16Z
+69775,Discovered Materials,discovered-materials,1,2026-08-15T02:58:16Z
+69777,Oberlin College,oberlin-college,1,2026-08-15T02:58:16Z
+69779,DEF CON Franklin,def-con-franklin,1,2026-08-15T02:58:16Z
+69781,Water Watch Center,water-watch-center,1,2026-08-15T02:58:16Z
+69783,LX Semicon,lx-semicon,1,2026-08-15T02:58:16Z
+69784,ODC,odc,1,2026-08-15T02:58:16Z
+69785,Wisk Aero,wisk-aero,1,2026-08-15T02:58:16Z
+69786,SkyGrid,skygrid,1,2026-08-15T02:58:16Z
+69787,Rigaku Holdings,rigaku-holdings,1,2026-08-15T02:58:16Z
+69788,Seoul Viosys,seoul-viosys,1,2026-08-15T02:58:16Z
+69789,Ornate Agencies,ornate-agencies,1,2026-08-15T02:58:16Z
+69790,Rhodium Group,rhodium-group,1,2026-08-15T02:58:16Z
+69791,Birmingham University,birmingham-university,1,2026-08-15T02:58:16Z
+69792,Mahindra University,mahindra-university,1,2026-08-15T02:58:16Z
+69794,Quanta,quanta,1,2026-08-15T02:58:16Z
