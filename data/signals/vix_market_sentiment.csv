@@ -1,2 +1,2 @@
 date,vix,change_1d,change_5d,change_20d,sentiment_regime,signal,source,source_status,data_status,stale,updated_at,data_quality_notes
-2026-08-18,15.84,0.65,0.56,-1.21,NORMAL,NEUTRAL,yfinance,ok,SUCCESS,False,2026-08-18,
+2026-08-19,14.89,-0.95,0.34,-1.75,CALM,LOW_VOLATILITY,yfinance,ok,SUCCESS,False,2026-08-19,
