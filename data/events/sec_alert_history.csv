@@ -193,3 +193,6 @@ sent_at,accession_number,ticker,company,form,filing_date,filing_index_url
 2026-08-18 21:51:02,0001601046-26-000029,KEYS,Keysight Technologies,8-K,2026-08-18,https://www.sec.gov/Archives/edgar/data/1601046/000160104626000029/0001601046-26-000029-index.html
 2026-08-19 21:53:57,0001104659-26-098590,NBIS,Nebius,6-K,2026-08-19,https://www.sec.gov/Archives/edgar/data/1513845/000110465926098590/0001104659-26-098590-index.html
 2026-08-19 21:53:57,0001193125-26-356217,MRVL,Marvell,8-K,2026-08-19,https://www.sec.gov/Archives/edgar/data/1835632/000119312526356217/0001193125-26-356217-index.html
+2026-08-20 21:56:36,0001104659-26-098924,NBIS,Nebius,6-K,2026-08-20,https://www.sec.gov/Archives/edgar/data/1513845/000110465926098924/0001104659-26-098924-index.html
+2026-08-20 21:56:36,0001104659-26-098999,RGTI,Rigetti Computing,8-K,2026-08-20,https://www.sec.gov/Archives/edgar/data/1838359/000110465926098999/0001104659-26-098999-index.html
+2026-08-20 21:56:36,0001104659-26-098877,RGTI,Rigetti Computing,8-K,2026-08-20,https://www.sec.gov/Archives/edgar/data/1838359/000110465926098877/0001104659-26-098877-index.html

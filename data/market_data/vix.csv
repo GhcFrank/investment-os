@@ -1,2 +1,2 @@
 date,vix,level,source,status,error_message,change_1d,change_5d,change_20d,updated_at
-2026-08-19,14.89,calm,yfinance,ok,,-0.95,0.34,-1.75,2026-08-19
+2026-08-20,16.01,normal,yfinance,ok,,1.12,1.38,-2.69,2026-08-20
