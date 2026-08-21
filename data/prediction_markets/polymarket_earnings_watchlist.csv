@@ -1,4 +1,7 @@
 ticker,company,market_id,question,matched_by,match_score,enabled
 NVDA,NVIDIA,3565367,Will NVIDIA (NVDA) beat quarterly earnings?,ticker,100,False
+AVGO,Broadcom,3750407,Will Broadcom (AVGO) beat quarterly earnings?,ticker,100,False
 MRVL,Marvell,3565495,Will Marvell Tech (MRVL) beat quarterly earnings?,ticker,100,False
+DELL,Dell Technologies,3750425,Will Dell Technologies (DELL) beat quarterly earnings?,ticker,100,False
+SNOW,Snowflake,3750513,Will Snowflake (SNOW) beat quarterly earnings?,ticker,100,False
 CRWD,CrowdStrike,3565369,Will CrowdStrike Holdings (CRWD) beat quarterly earnings?,ticker,100,False

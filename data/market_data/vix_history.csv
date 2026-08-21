@@ -39,3 +39,4 @@ date,vix,level,source,status,error_message,change_1d,change_5d,change_20d,update
 2026-08-18,15.84,normal,yfinance,ok,,0.65,0.56,-1.21,2026-08-18
 2026-08-19,14.89,calm,yfinance,ok,,-0.95,0.34,-1.75,2026-08-19
 2026-08-20,16.01,normal,yfinance,ok,,1.12,1.38,-2.69,2026-08-20
+2026-08-21,15.13,normal,yfinance,ok,,-0.88,0.88,-3.45,2026-08-21
