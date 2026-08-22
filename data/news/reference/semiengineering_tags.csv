@@ -46189,6 +46189,7 @@ term_id,name,slug,count,updated_at
 69759,quantum transport simulation,quantum-transport-simulation,1,2026-08-15T02:58:16Z
 69760,circuit-level benchmarking,circuit-level-benchmarking,1,2026-08-15T02:58:16Z
 69761,layout-induced parasitics,layout-induced-parasitics,1,2026-08-15T02:58:16Z
+69762,bond testing,bond-testing,1,2026-08-22T03:00:54Z
 69763,VLM,vlm,1,2026-08-15T02:58:16Z
 69764,prefill,prefill,1,2026-08-15T02:58:16Z
 69765,one megawatt rack,one-megawatt-rack,1,2026-08-15T02:58:16Z
@@ -46215,3 +46216,31 @@ term_id,name,slug,count,updated_at
 69791,Birmingham University,birmingham-university,1,2026-08-15T02:58:16Z
 69792,Mahindra University,mahindra-university,1,2026-08-15T02:58:16Z
 69794,Quanta,quanta,1,2026-08-15T02:58:16Z
+69795,800VDC,800vdc,1,2026-08-22T03:00:54Z
+69796,solid state transformers,solid-state-transformers,1,2026-08-22T03:00:54Z
+69797,Gimlet Labs,gimlet-labs,1,2026-08-22T03:00:54Z
+69798,Lamba AI,lamba-ai,1,2026-08-22T03:00:54Z
+69799,Verda,verda,1,2026-08-22T03:00:54Z
+69801,2.5D chiplets,2-5d-chiplets,1,2026-08-22T03:00:54Z
+69802,operation unit,operation-unit,1,2026-08-22T03:00:54Z
+69803,PDN surrogate,pdn-surrogate,1,2026-08-22T03:00:54Z
+69804,energy-delay product,energy-delay-product,1,2026-08-22T03:00:54Z
+69805,memtransistor,memtransistor,1,2026-08-22T03:00:54Z
+69806,Siemens Arm,siemens-arm,1,2026-08-22T03:00:54Z
+69807,feedforward control,feedforward-control,1,2026-08-22T03:00:54Z
+69808,cHBM,chbm,1,2026-08-22T03:00:54Z
+69809,Scope 3 emissions,scope-3-emissions,1,2026-08-22T03:00:54Z
+69812,CesiumAstro,cesiumastro,1,2026-08-22T03:00:54Z
+69813,Solinide Photonics,solinide-photonics,1,2026-08-22T03:00:54Z
+69815,Prodigy Technovations,prodigy-technovations,1,2026-08-22T03:00:54Z
+69816,Vuzix,vuzix,1,2026-08-22T03:00:54Z
+69817,SB Energy,sb-energy,1,2026-08-22T03:00:54Z
+69818,Reinhausen,reinhausen,1,2026-08-22T03:00:54Z
+69819,ELECTRA AI,electra-ai,1,2026-08-22T03:00:54Z
+69820,Verne,verne,1,2026-08-22T03:00:54Z
+69821,Apollo Go,apollo-go,1,2026-08-22T03:00:54Z
+69822,Electric Flight,electric-flight,1,2026-08-22T03:00:54Z
+69823,Electra,electra,1,2026-08-22T03:00:54Z
+69824,Auto AI Security,auto-ai-security,1,2026-08-22T03:00:54Z
+69826,Groq LLC,groq-llc,1,2026-08-22T03:00:54Z
+69827,UA Austin,ua-austin,1,2026-08-22T03:00:54Z
